@@ -2,34 +2,50 @@ import os
 import pandas as pd
 from transformers import pipeline
 
-INPUT = "data/raw/texts.csv"
-OUTPUT = "data/processed/sentiment_enriched.csv"
+# ======================================
+# Configuration
+# ======================================
+
+INPUT_FILE = "data/raw/reviews_raw.csv"
+OUTPUT_DIR = "data/processed"
+OUTPUT_FILE = "sentiment_enriched.csv"
+
+MODEL_NAME = "distilbert-base-uncased-finetuned-sst-2-english"
+
+# ======================================
+# Main
+# ======================================
 
 def main():
-    if not os.path.exists(INPUT):
-        raise FileNotFoundError(f"{INPUT} does not exist")
+    if not os.path.exists(INPUT_FILE):
+        raise FileNotFoundError(f"{INPUT_FILE} not found")
 
-    df = pd.read_csv(INPUT)
+    os.makedirs(OUTPUT_DIR, exist_ok=True)
+
+    df = pd.read_csv(INPUT_FILE)
 
     if df.empty:
-        raise ValueError("Input CSV is empty. No texts to analyze.")
-
-    if "text" not in df.columns:
-        raise ValueError("Missing 'text' column in input CSV")
+        raise ValueError("Input CSV is empty")
 
     sentiment_pipeline = pipeline(
         "sentiment-analysis",
-        model="distilbert-base-uncased-finetuned-sst-2-english"
+        model=MODEL_NAME
     )
 
-    df["sentiment"] = df["text"].apply(
-        lambda x: sentiment_pipeline(x[:512])[0]["label"]
+    sentiments = sentiment_pipeline(
+        df["text"].astype(str).tolist(),
+        truncation=True
     )
 
-    os.makedirs("data/processed", exist_ok=True)
-    df.to_csv(OUTPUT, index=False)
+    df["sentiment_label"] = [s["label"] for s in sentiments]
+    df["sentiment_score"] = [s["score"] for s in sentiments]
 
-    print(f"Sentiment analysis saved to {OUTPUT}")
+    output_path = os.path.join(OUTPUT_DIR, OUTPUT_FILE)
+    df.to_csv(output_path, index=False)
+
+    print(f"Sentiment analysis completed: {output_path}")
+    print(df.groupby("store_name")["sentiment_label"].value_counts())
+
 
 if __name__ == "__main__":
     main()
