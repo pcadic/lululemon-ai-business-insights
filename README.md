@@ -1,6 +1,8 @@
 # Lululemon AI-driven Business Insights
 
 [![Built with real public APIs](https://img.shields.io/badge/API-Public-blue)](https://huggingface.co)
+[![Open in Streamlit](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)](https://lululemon-ai-business-insights.streamlit.app)
+
 
 ## Overview
 
