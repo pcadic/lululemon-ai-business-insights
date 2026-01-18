@@ -1,68 +1,86 @@
-import pandas as pd
 import streamlit as st
+import pandas as pd
 from transformers import pipeline
 
 # -----------------------------
-# Load business insights
+# Streamlit page configuration
 # -----------------------------
-INSIGHTS_PATH = "../data/processed/business_insights.csv"
-TOPICS_PATH = "../data/processed/topic_enriched.csv"
+st.set_page_config(
+    page_title="Lululemon AI Business Insights",
+    layout="wide",
+)
+
+st.title("Lululemon AI Business Insights Dashboard")
+
+# -----------------------------
+# Load CSVs
+# -----------------------------
+sentiment_file = "data/processed/sentiment_enriched.csv"
+topic_file = "data/processed/topic_enriched.csv"
+insights_file = "data/processed/business_insights.csv"
+
+@st.cache_data
+def load_csv(path):
+    return pd.read_csv(path)
 
 try:
-    insights_df = pd.read_csv(INSIGHTS_PATH)
-    topics_df = pd.read_csv(TOPICS_PATH)
-except FileNotFoundError:
-    st.error("Data files not found. Run the GitHub Actions pipeline first.")
+    df_sentiment = load_csv(sentiment_file)
+    df_topic = load_csv(topic_file)
+    df_insights = load_csv(insights_file)
+except FileNotFoundError as e:
+    st.error(f"CSV not found: {e}")
     st.stop()
 
 # -----------------------------
-# Streamlit Layout
+# Sidebar filters
 # -----------------------------
-st.set_page_config(page_title="Lululemon AI Insights", layout="wide")
-st.title("Lululemon AI-driven Business Insights")
+st.sidebar.header("Filters")
+sources = df_sentiment['source'].unique()
+selected_sources = st.sidebar.multiselect("Select source(s):", sources, default=list(sources))
+
+df_sentiment_filtered = df_sentiment[df_sentiment['source'].isin(selected_sources)]
+df_topic_filtered = df_topic[df_topic['source'].isin(selected_sources)]
 
 # -----------------------------
-# KPI Table
+# Display business insights
 # -----------------------------
-st.header("Theme-wise Sentiment KPIs")
-st.dataframe(insights_df)
+st.subheader("Aggregated Business Insights")
+st.dataframe(df_insights.style.format("{:.2f}"))
 
 # -----------------------------
-# Graphiques
+# Sentiment distribution
 # -----------------------------
-st.header("Sentiment Distribution by Theme")
-for theme in insights_df['theme']:
-    theme_data = insights_df[insights_df['theme'] == theme]
-    chart_data = pd.DataFrame({
-        'Positive': [theme_data['percent_positive'].values[0]],
-        'Negative': [theme_data['percent_negative'].values[0]],
-        'Neutral': [theme_data['percent_neutral'].values[0]]
-    })
-    st.subheader(theme)
-    st.bar_chart(chart_data)
+st.subheader("Sentiment Distribution by Source")
+sentiment_counts = df_sentiment_filtered.groupby(['source', 'sentiment_label']).size().unstack(fill_value=0)
+st.bar_chart(sentiment_counts)
 
 # -----------------------------
-# Texts with Topics & Sentiment
+# Topic distribution
 # -----------------------------
-st.header("Texts with Predicted Topics & Sentiment")
-st.dataframe(topics_df[["date", "source", "title", "predicted_topics", "sentiment_label"]])
+st.subheader("Topic Distribution")
+topic_counts = df_topic_filtered.groupby(['topic']).size().sort_values(ascending=False)
+st.bar_chart(topic_counts)
 
 # -----------------------------
-# Hugging Face Summarization
+# Sample texts with sentiment and topic
 # -----------------------------
-st.header("Automatic Summary of Texts")
+st.subheader("Sample Texts")
+merged = pd.merge(df_sentiment_filtered, df_topic_filtered, on=['date', 'source', 'title', 'text'])
+st.dataframe(merged[['date', 'source', 'title', 'text', 'sentiment_label', 'sentiment_score', 'topic', 'topic_score']])
 
-summary_model_name = "facebook/bart-large-cnn"
-try:
-    summarizer = pipeline("summarization", model=summary_model_name)
-except Exception as e:
-    st.warning(f"Could not load summarizer: {e}")
-    summarizer = None
+# -----------------------------
+# Hugging Face automatic summary
+# -----------------------------
+st.subheader("Automatic Business Summary")
 
-if summarizer:
-    texts_to_summarize = " ".join(topics_df["text"].tolist())
-    if len(texts_to_summarize.strip()) > 0:
-        summary = summarizer(texts_to_summarize, max_length=150, min_length=50, do_sample=False)[0]['summary_text']
-        st.write(summary)
-    else:
-        st.write("No texts available for summarization.")
+@st.cache_resource
+def get_summary(texts):
+    summarizer = pipeline("summarization", model="facebook/bart-large-cnn")
+    combined_text = " ".join(texts.tolist())
+    # limit length for large texts
+    combined_text = combined_text[:3000]
+    summary = summarizer(combined_text, max_length=150, min_length=50, do_sample=False)
+    return summary[0]['summary_text']
+
+summary_text = get_summary(df_sentiment_filtered['text'])
+st.write(summary_text)
