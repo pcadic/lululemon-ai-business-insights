@@ -16,7 +16,7 @@ if not API_KEY:
 TEXT_SEARCH_URL = "https://maps.googleapis.com/maps/api/place/textsearch/json"
 PLACE_DETAILS_URL = "https://maps.googleapis.com/maps/api/place/details/json"
 
-QUERY = "Lululemon store Vancouver"
+QUERY = "Lululemon Robson Street Vancouver Canada"
 MAX_STORES = 5          # Sécurité quota
 SLEEP_SECONDS = 1       # Respect API
 
