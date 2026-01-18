@@ -1,14 +1,16 @@
-name: Lululemon AI Insight Pipeline
+name: Lululemon AI Business Insight Pipeline
 
 on:
+  workflow_dispatch:
   schedule:
-    - cron: '0 9 * * 1'  # tous les lundis à 9h UTC
-  workflow_dispatch:  # pour exécuter manuellement si nécessaire
-
+    - cron: "0 6 * * 1"  # Tous les lundis à 06:00 UTC
 
 jobs:
   run-pipeline:
     runs-on: ubuntu-latest
+
+    env:
+      GOOGLE_PLACES_API_KEY: ${{ secrets.GOOGLE_PLACES_API_KEY }}
 
     steps:
       - name: Checkout repository
@@ -24,23 +26,22 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      - name: Create necessary folders
-        run: |
-          mkdir -p data/raw
-          mkdir -p data/processed
-          # optional: add empty .gitkeep
-          touch data/raw/.gitkeep
-          touch data/processed/.gitkeep
+      - name: Run data ingestion (Google Maps API)
+        run: python src/fetch_texts.py
 
-      - name: Run AI pipeline
-        run: |
-          python src/fetch_texts.py || echo "fetch_texts failed, check manually"
-          python src/sentiment_analysis.py || echo "sentiment_analysis failed, check manually"
-          python src/topic_classification.py || echo "topic_classification failed, check manually"
-          python src/business_insights.py || echo "business_insights failed, check manually"
+      - name: Run sentiment analysis (Hugging Face)
+        run: python src/sentiment_analysis.py
 
-      - name: Upload processed data
-        uses: actions/upload-artifact@v4
-        with:
-          name: lululemon-ai-output
-          path: data/processed/
+      - name: Run topic classification (Hugging Face)
+        run: python src/topic_classification.py
+
+      - name: Generate business insights
+        run: python src/business_insights.py
+
+      - name: Commit updated CSV files
+        run: |
+          git config --global user.name "github-actions"
+          git config --global user.email "github-actions@github.com"
+          git add data/raw data/processed
+          git commit -m "Automated weekly AI business insights update" || echo "No changes to commit"
+          git push
