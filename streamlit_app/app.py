@@ -1,68 +1,66 @@
+# app.py
 import streamlit as st
 import pandas as pd
 
-# ======================================
-# Configuration
-# ======================================
-INSIGHTS_FILE = "data/processed/business_insights.csv"
-SENTIMENT_FILE = "data/processed/sentiment_enriched.csv"
-TOPIC_FILE = "data/processed/topic_enriched.csv"
+# -----------------------------
+# Titre de l'app
+# -----------------------------
+st.set_page_config(page_title="Lululemon AI Insights", layout="wide")
+st.title("Lululemon AI Business Insights Dashboard")
 
-# ======================================
-# Titre
-# ======================================
-st.set_page_config(page_title="Lululemon Business Insights", layout="wide")
-st.title("Lululemon Business Insights Dashboard")
-st.markdown("Analyse des avis clients par magasin (Google Maps) – pipeline 100% cloud")
+# -----------------------------
+# Charger les CSV
+# -----------------------------
+@st.cache_data
+def load_data():
+    try:
+        sentiment = pd.read_csv("data/processed/sentiment_enriched.csv")
+        topics = pd.read_csv("data/processed/topic_enriched.csv")
+        insights = pd.read_csv("data/processed/business_insights.csv")
+        return sentiment, topics, insights
+    except Exception as e:
+        st.error(f"Erreur lors du chargement des CSV : {e}")
+        return pd.DataFrame(), pd.DataFrame(), pd.DataFrame()
 
-# ======================================
-# Lecture des fichiers
-# ======================================
-df_insights = pd.read_csv(INSIGHTS_FILE)
-df_sentiment = pd.read_csv(SENTIMENT_FILE)
-df_topic = pd.read_csv(TOPIC_FILE)
+sentiment_df, topics_df, insights_df = load_data()
 
-# ======================================
+# -----------------------------
 # Sélection du magasin
-# ======================================
-stores = df_insights["store_name"].tolist()
-store_selected = st.selectbox("Sélectionnez un magasin", stores)
+# -----------------------------
+stores = sentiment_df["store_name"].unique() if not sentiment_df.empty else []
+selected_store = st.selectbox("Sélectionner un magasin", options=stores)
 
-if store_selected == "Lululemon Total":
-    df_store_sentiment = df_sentiment
-    df_store_topic = df_topic
+if selected_store:
+    st.subheader(f"Analyses pour {selected_store}")
+
+    # -----------------------------
+    # Sentiment
+    # -----------------------------
+    store_sentiment = sentiment_df[sentiment_df["store_name"] == selected_store]
+    if not store_sentiment.empty:
+        st.write("### Sentiment des avis")
+        st.bar_chart(store_sentiment["sentiment_score"])
+    else:
+        st.info("Pas de données de sentiment pour ce magasin.")
+
+    # -----------------------------
+    # Topics
+    # -----------------------------
+    store_topics = topics_df[topics_df["store_name"] == selected_store]
+    if not store_topics.empty:
+        st.write("### Topics identifiés")
+        st.dataframe(store_topics[["topic", "score"]])
+    else:
+        st.info("Pas de topics disponibles pour ce magasin.")
+
+    # -----------------------------
+    # Business Insights
+    # -----------------------------
+    store_insights = insights_df[insights_df["store_name"] == selected_store]
+    if not store_insights.empty:
+        st.write("### Insights Business")
+        st.dataframe(store_insights)
+    else:
+        st.info("Pas d'insights disponibles pour ce magasin.")
 else:
-    df_store_sentiment = df_sentiment[df_sentiment["store_name"] == store_selected]
-    df_store_topic = df_topic[df_topic["store_name"] == store_selected]
-
-# ======================================
-# KPIs
-# ======================================
-st.subheader("KPIs")
-kpi1, kpi2, kpi3 = st.columns(3)
-
-kpi1.metric("Total reviews", len(df_store_sentiment))
-pos_ratio = round((df_store_sentiment["sentiment_label"]=="POSITIVE").mean()*100, 2)
-neg_ratio = round((df_store_sentiment["sentiment_label"]=="NEGATIVE").mean()*100, 2)
-kpi2.metric("Positive ratio (%)", pos_ratio)
-kpi3.metric("Negative ratio (%)", neg_ratio)
-
-# ======================================
-# Graphique des sentiments
-# ======================================
-st.subheader("Distribution des sentiments")
-sentiment_counts = df_store_sentiment["sentiment_label"].value_counts()
-st.bar_chart(sentiment_counts)
-
-# ======================================
-# Graphique des topics
-# ======================================
-st.subheader("Top topics")
-topic_counts = df_store_topic["topic_label"].value_counts().head(10)
-st.bar_chart(topic_counts)
-
-# ======================================
-# Aperçu des avis
-# ======================================
-st.subheader("Exemples d'avis")
-st.dataframe(df_store_sentiment[["text", "sentiment_label", "rating"]].head(10))
+    st.info("Aucun magasin disponible dans les données.")
