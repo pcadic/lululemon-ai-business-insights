@@ -49,6 +49,41 @@ def fetch_place_reviews(place_id):
     result = response.json().get("result", {})
     return result.get("reviews", []), result.get("name")
 
+def fetch_reviews_for_store(store_name):
+    print(f"DEBUG: Start fetching reviews for '{store_name}'")
+    
+    # Text Search
+    search_url = "https://maps.googleapis.com/maps/api/place/textsearch/json"
+    params = {"query": store_name, "key": API_KEY}
+    resp = requests.get(search_url, params=params).json()
+    
+    print(f"DEBUG: Text Search response for '{store_name}': {resp}")
+
+    if not resp.get("results"):
+        print(f"WARNING: Aucun résultat Text Search pour {store_name}")
+        return []
+
+    place_id = resp["results"][0]["place_id"]
+    print(f"DEBUG: Found place_id={place_id} for '{store_name}'")
+
+    # Place Details
+    details_url = "https://maps.googleapis.com/maps/api/place/details/json"
+    params = {"place_id": place_id, "fields": "name,rating,reviews", "key": API_KEY}
+    resp = requests.get(details_url, params=params).json()
+    
+    print(f"DEBUG: Place Details response for '{store_name}': {resp}")
+
+    reviews = resp.get("result", {}).get("reviews", [])
+    if not reviews:
+        print(f"WARNING: Pas de reviews dans Place Details pour {store_name}")
+
+    for r in reviews:
+        r["store_name"] = store_name
+
+    print(f"DEBUG: Number of reviews fetched for '{store_name}': {len(reviews)}")
+    return reviews
+
+
 
 # ======================================
 # Main
@@ -67,7 +102,7 @@ def main():
         place_id = store.get("place_id")
         store_name = store.get("name")
 
-        reviews, detailed_name = fetch_place_reviews(place_id)
+        reviews, detailed_name = fetch_reviews_for_store(place_id)
 
         for r in reviews:
             all_reviews.append({
