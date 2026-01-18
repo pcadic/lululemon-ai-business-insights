@@ -1,44 +1,91 @@
-import pandas as pd
 import os
+import pandas as pd
 
-INPUT = "data/processed/topic_enriched.csv"
-OUTPUT = "data/processed/business_insights.csv"
+# ======================================
+# Configuration
+# ======================================
+
+SENTIMENT_FILE = "data/processed/sentiment_enriched.csv"
+TOPIC_FILE = "data/processed/topic_enriched.csv"
+OUTPUT_DIR = "data/processed"
+OUTPUT_FILE = "business_insights.csv"
+
+# ======================================
+# Main
+# ======================================
 
 def main():
-    df = pd.read_csv(INPUT)
+    os.makedirs(OUTPUT_DIR, exist_ok=True)
 
-    # Normalisation sentiment
-    df["sentiment"] = df["sentiment"].str.upper()
+    # Lecture des fichiers intermédiaires
+    df_sentiment = pd.read_csv(SENTIMENT_FILE)
+    df_topic = pd.read_csv(TOPIC_FILE)
 
-    # Aggregation par magasin + topic
-    store_level = (
-        df
-        .groupby(["place_name", "topic", "sentiment"])
-        .size()
-        .unstack(fill_value=0)
-        .reset_index()
+    # Fusion par magasin + texte
+    df = pd.merge(
+        df_sentiment,
+        df_topic[["store_name", "text", "topic_label"]],
+        on=["store_name", "text"],
+        how="left"
     )
 
-    store_level["level"] = "STORE"
+    # ======================================
+    # KPI par magasin
+    # ======================================
 
-    # Aggregation globale
-    global_level = (
-        df
-        .groupby(["topic", "sentiment"])
-        .size()
-        .unstack(fill_value=0)
-        .reset_index()
-    )
+    insights = []
 
-    global_level["place_name"] = "ALL_STORES"
-    global_level["level"] = "GLOBAL"
+    for store in df["store_name"].unique():
+        df_store = df[df["store_name"] == store]
 
-    final_df = pd.concat([store_level, global_level], ignore_index=True)
+        total_reviews = len(df_store)
+        pos_reviews = len(df_store[df_store["sentiment_label"] == "POSITIVE"])
+        neg_reviews = len(df_store[df_store["sentiment_label"] == "NEGATIVE"])
+        pos_ratio = pos_reviews / total_reviews if total_reviews else 0
+        neg_ratio = neg_reviews / total_reviews if total_reviews else 0
 
-    os.makedirs("data/processed", exist_ok=True)
-    final_df.to_csv(OUTPUT, index=False)
+        # Top topics
+        top_topics = df_store["topic_label"].value_counts().head(3).to_dict()
 
-    print("Business insights generated")
+        insights.append({
+            "store_name": store,
+            "total_reviews": total_reviews,
+            "positive_ratio": round(pos_ratio, 2),
+            "negative_ratio": round(neg_ratio, 2),
+            "top_topics": ", ".join(top_topics.keys())
+        })
+
+    df_insights = pd.DataFrame(insights)
+
+    # ======================================
+    # KPI global Lululemon
+    # ======================================
+
+    total_reviews = len(df)
+    pos_reviews = len(df[df["sentiment_label"] == "POSITIVE"])
+    neg_reviews = len(df[df["sentiment_label"] == "NEGATIVE"])
+    pos_ratio = pos_reviews / total_reviews if total_reviews else 0
+    neg_ratio = neg_reviews / total_reviews if total_reviews else 0
+    top_topics_global = df["topic_label"].value_counts().head(5).to_dict()
+
+    df_insights.loc[len(df_insights)] = {
+        "store_name": "Lululemon Total",
+        "total_reviews": total_reviews,
+        "positive_ratio": round(pos_ratio, 2),
+        "negative_ratio": round(neg_ratio, 2),
+        "top_topics": ", ".join(top_topics_global.keys())
+    }
+
+    # ======================================
+    # Export CSV final
+    # ======================================
+
+    output_path = os.path.join(OUTPUT_DIR, OUTPUT_FILE)
+    df_insights.to_csv(output_path, index=False)
+
+    print(f"Business insights generated: {output_path}")
+    print(df_insights)
+
 
 if __name__ == "__main__":
     main()
