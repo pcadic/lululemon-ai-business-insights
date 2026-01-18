@@ -1,16 +1,14 @@
-name: Lululemon AI Business Insight Pipeline
+name: Lululemon AI Insight Pipeline
 
 on:
-  workflow_dispatch:
   schedule:
-    - cron: "0 6 * * 1"  # Tous les lundis à 06:00 UTC
+    # Exécute tous les lundis à 6h UTC
+    - cron: '0 6 * * 1'
+  workflow_dispatch:  # permet lancement manuel
 
 jobs:
   run-pipeline:
     runs-on: ubuntu-latest
-
-    env:
-      GOOGLE_PLACES_API_KEY: ${{ secrets.GOOGLE_PLACES_API_KEY }}
 
     steps:
       - name: Checkout repository
@@ -26,22 +24,23 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      - name: Run data ingestion (Google Maps API)
-        run: python src/fetch_texts.py
-
-      - name: Run sentiment analysis (Hugging Face)
-        run: python src/sentiment_analysis.py
-
-      - name: Run topic classification (Hugging Face)
-        run: python src/topic_classification.py
-
-      - name: Generate business insights
-        run: python src/business_insights.py
-
-      - name: Commit updated CSV files
+      - name: Run AI pipeline
         run: |
-          git config --global user.name "github-actions"
-          git config --global user.email "github-actions@github.com"
-          git add data/raw data/processed
-          git commit -m "Automated weekly AI business insights update" || echo "No changes to commit"
+          python src/fetch_texts.py
+          python src/sentiment_analysis.py
+          python src/topic_classification.py
+          python src/business_insights.py
+
+      - name: Commit and push updated CSVs
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git add data/processed/*.csv
+          git commit -m "Update processed CSVs from scheduled AI pipeline" || echo "No changes to commit"
           git push
+
+      - name: Upload processed data (artifacts)
+        uses: actions/upload-artifact@v4
+        with:
+          name: lululemon-ai-output
+          path: data/processed/
