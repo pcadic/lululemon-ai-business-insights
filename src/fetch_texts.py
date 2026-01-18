@@ -1,68 +1,64 @@
 import os
-import pandas as pd
-from datetime import datetime
 import requests
+import pandas as pd
 
-# -----------------------------
-# Configuration
-# -----------------------------
+API_KEY = os.getenv("GOOGLE_PLACES_API_KEY")
+if not API_KEY:
+    raise ValueError("GOOGLE_PLACES_API_KEY not set")
+
 OUTPUT_DIR = "data/raw"
 OUTPUT_FILE = "reviews_raw.csv"
-API_KEY = os.getenv("GOOGLE_PLACES_API_KEY")  # clé Google Cloud
-CITY = "Vancouver"
-BRAND = "Lululemon"
-PLACE_IDS = [
-    # Exemples d’IDs Google Places de quelques magasins Lululemon à Vancouver
-    "ChIJN1t_tDeuEmsRUsoyG83frY4",
-    "ChIJN2t_tDeuEmsRUsoyG83frY5",
-]
+
+QUERY = "lululemon store Vancouver"
+TEXT_SEARCH_URL = "https://maps.googleapis.com/maps/api/place/textsearch/json"
+DETAILS_URL = "https://maps.googleapis.com/maps/api/place/details/json"
 
 
-# -----------------------------
-# Check Gogole Key
-# -----------------------------
-if not API_KEY:
-    raise ValueError("GOOGLE_PLACES_API_KEY not found in environment variables")
+def text_search():
+    params = {
+        "query": QUERY,
+        "key": API_KEY
+    }
+    response = requests.get(TEXT_SEARCH_URL, params=params)
+    return response.json().get("results", [])
 
 
-# -----------------------------
-# Fonction pour récupérer les avis d’un place_id
-# -----------------------------
 def get_place_reviews(place_id):
-    url = (
-        f"https://maps.googleapis.com/maps/api/place/details/json"
-        f"?place_id={place_id}&fields=name,rating,reviews&key={API_KEY}"
-    )
-    r = requests.get(url)
-    data = r.json()
-    reviews = data.get("result", {}).get("reviews", [])
-    output = []
-    for rev in reviews:
-        output.append({
-            "place_id": place_id,
-            "place_name": data.get("result", {}).get("name", ""),
-            "author_name": rev.get("author_name"),
-            "rating": rev.get("rating"),
-            "text": rev.get("text"),
-            "time": rev.get("time")
-        })
-    return output
+    params = {
+        "place_id": place_id,
+        "fields": "name,rating,reviews",
+        "key": API_KEY
+    }
+    response = requests.get(DETAILS_URL, params=params)
+    result = response.json().get("result", {})
+    reviews = result.get("reviews", [])
 
-# -----------------------------
-# Main
-# -----------------------------
+    rows = []
+    for r in reviews:
+        rows.append({
+            "place_id": place_id,
+            "place_name": result.get("name"),
+            "rating": r.get("rating"),
+            "text": r.get("text")
+        })
+    return rows
+
+
 def main():
     os.makedirs(OUTPUT_DIR, exist_ok=True)
-    all_reviews = []
+    all_rows = []
 
-    for pid in PLACE_IDS:
-        reviews = get_place_reviews(pid)
-        all_reviews.extend(reviews)
+    places = text_search()
+    for place in places:
+        place_id = place["place_id"]
+        all_rows.extend(get_place_reviews(place_id))
 
-    df = pd.DataFrame(all_reviews)
+    df = pd.DataFrame(all_rows)
     output_path = os.path.join(OUTPUT_DIR, OUTPUT_FILE)
     df.to_csv(output_path, index=False)
-    print(f"Saved {len(df)} reviews to {output_path}")
+
+    print(f"{len(df)} reviews saved to {output_path}")
+
 
 if __name__ == "__main__":
     main()
