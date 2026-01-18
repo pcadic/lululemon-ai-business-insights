@@ -39,4 +39,66 @@ The pipeline uses:
 ---
 
 ## Repository Structure
+.
+├── .github
+│ └── workflows
+│ └── pipeline.yml # GitHub Actions workflow
+├── data
+│ ├── raw
+│ └── processed
+├── src
+│ ├── fetch_texts.py
+│ ├── sentiment_analysis.py
+│ ├── topic_classification.py
+│ └── business_insights.py
+├── streamlit_app
+│ └── app.py
+├── requirements.txt
+└── README.md
+
+
+---
+
+## Getting Started
+
+1. **Install dependencies**
+
+```bash
+pip install -r requirements.txt streamlit
+```
+
+2. **Run locally
+
+# Run the pipeline manually
+python src/fetch_texts.py
+python src/sentiment_analysis.py
+python src/topic_classification.py
+python src/business_insights.py
+
+# Launch Streamlit
+streamlit run streamlit_app/app.py
+
+3. **GitHub Actions
+The pipeline is fully automated via GitHub Actions.
+On push to main or manual trigger, the workflow:
+
+Executes all scripts
+
+Generates CSVs
+
+Prepares artifacts for download or visualization
+
+Screenshots
+
+Hugging Face Models Used
+Task	Model
+Sentiment Analysis	distilbert-base-uncased-finetuned-sst-2-english
+Topic Classification	facebook/bart-large-mnli
+Summarization	facebook/bart-large-cnn
+Notes
+
+All data are public or simulated business texts, ensuring compliance and reproducibility.
+
+The project highlights real AI workflow in a business context.
+
 
