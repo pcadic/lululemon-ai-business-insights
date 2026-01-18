@@ -12,15 +12,15 @@ if not API_KEY:
 
 OUTPUT_DIR = "data/raw"
 OUTPUT_FILE = "reviews_raw.csv"
-
 DEBUG_DIR = os.path.join(OUTPUT_DIR, "debug")
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 os.makedirs(DEBUG_DIR, exist_ok=True)
 
-# Magasins à analyser (noms plus généraux pour tests)
+# Magasins à analyser (Vancouver uniquement)
 STORES = [
-    "Lululemon Vancouver",
-    "Lululemon Edmonton"
+    "Lululemon Robson Street, Vancouver, Canada",
+    "Lululemon Oakridge Centre, Vancouver, Canada",
+    "Lululemon Metropolis at Metrotown, Burnaby, Canada"
 ]
 
 # -----------------------------
@@ -34,7 +34,6 @@ def fetch_reviews_for_store(store_name):
     params = {"query": store_name, "key": API_KEY}
     resp_search = requests.get(search_url, params=params).json()
 
-    # Log complet pour debug
     debug_file_search = os.path.join(DEBUG_DIR, f"debug_textsearch_{store_name.replace(' ','_')}.json")
     with open(debug_file_search, "w") as f:
         json.dump(resp_search, f, indent=2)
@@ -58,9 +57,6 @@ def fetch_reviews_for_store(store_name):
     print(f"DEBUG: Place Details response saved to {debug_file_details}")
 
     reviews = resp_details.get("result", {}).get("reviews", [])
-    if not reviews:
-        print(f"WARNING: Pas de reviews dans Place Details pour '{store_name}'")
-
     for r in reviews:
         r["store_name"] = store_name
 
@@ -79,9 +75,9 @@ def main():
 
     # fallback si aucune review
     if not all_reviews:
-        print("WARNING: Aucune review récupérée pour tous les magasins, ajout d'une review factice pour test")
+        print("WARNING: Aucune review récupérée, ajout d'une review factice pour test")
         all_reviews = [{
-            "store_name": "Lululemon Test Store",
+            "store_name": "Lululemon Vancouver Test",
             "author_name": "Test User",
             "rating": 5,
             "text": "Great store, friendly staff!",
@@ -89,7 +85,6 @@ def main():
         }]
 
     df = pd.DataFrame(all_reviews)
-    # garder seulement les colonnes utiles
     df = df[["store_name","author_name","rating","text","time"]]
 
     output_path = os.path.join(OUTPUT_DIR, OUTPUT_FILE)
