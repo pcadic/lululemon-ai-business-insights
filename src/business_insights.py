@@ -1,60 +1,21 @@
-import os
 import pandas as pd
+import os
 
-# -----------------------------
-# Configuration
-# -----------------------------
-INPUT_PATH = "data/processed/topic_enriched.csv"
-OUTPUT_DIR = "data/processed"
-OUTPUT_FILE = "business_insights.csv"
+SENTIMENT_FILE = "data/processed/sentiment_enriched.csv"
+TOPIC_FILE = "data/processed/topic_enriched.csv"
+OUTPUT_FILE = "data/processed/business_insights.csv"
 
-# -----------------------------
-# Main logic
-# -----------------------------
 def main():
-    if not os.path.exists(INPUT_PATH):
-        raise FileNotFoundError(f"Input file not found: {INPUT_PATH}")
+    df = pd.read_csv(SENTIMENT_FILE)
+    df_topics = pd.read_csv(TOPIC_FILE)
 
-    os.makedirs(OUTPUT_DIR, exist_ok=True)
+    df['topic'] = df_topics['topic']
 
-    df = pd.read_csv(INPUT_PATH)
-
-    # -----------------------------
-    # KPIs par thème
-    # -----------------------------
-    themes = set()
-    for topics in df["predicted_topics"].dropna():
-        for t in topics.split(", "):
-            themes.add(t)
-
-    insights = []
-    for theme in themes:
-        theme_df = df[df["predicted_topics"].str.contains(theme, na=False)]
-        total = len(theme_df)
-        positive = len(theme_df[theme_df["sentiment_label"] == "POSITIVE"])
-        negative = len(theme_df[theme_df["sentiment_label"] == "NEGATIVE"])
-        neutral = total - positive - negative
-
-        insights.append({
-            "theme": theme,
-            "total_mentions": total,
-            "positive_count": positive,
-            "negative_count": negative,
-            "neutral_count": neutral,
-            "percent_positive": round(100 * positive / total, 1) if total else 0,
-            "percent_negative": round(100 * negative / total, 1) if total else 0,
-            "percent_neutral": round(100 * neutral / total, 1) if total else 0
-        })
-
-    insights_df = pd.DataFrame(insights)
-
-    output_path = os.path.join(OUTPUT_DIR, OUTPUT_FILE)
-    insights_df.to_csv(output_path, index=False)
-
-    print(f"Business insights saved to {output_path}")
-    print("\nSample insights:")
-    print(insights_df.head())
-
+    # Simple pivot pour business insights
+    insights = df.groupby('topic')['sentiment_label'].value_counts().unstack(fill_value=0)
+    os.makedirs("data/processed", exist_ok=True)
+    insights.to_csv(OUTPUT_FILE)
+    print(f"Business insights saved: {OUTPUT_FILE}")
 
 if __name__ == "__main__":
     main()
