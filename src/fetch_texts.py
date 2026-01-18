@@ -59,6 +59,11 @@ def main():
 
     print(f"{len(df)} reviews saved to {output_path}")
 
+    if df.empty:
+        raise ValueError("No reviews fetched from Google Maps API")
+
+
 
 if __name__ == "__main__":
     main()
+    
