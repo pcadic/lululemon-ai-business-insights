@@ -1,21 +1,44 @@
 import pandas as pd
 import os
 
-SENTIMENT_FILE = "data/processed/sentiment_enriched.csv"
-TOPIC_FILE = "data/processed/topic_enriched.csv"
-OUTPUT_FILE = "data/processed/business_insights.csv"
+INPUT = "data/processed/topic_enriched.csv"
+OUTPUT = "data/processed/business_insights.csv"
 
 def main():
-    df = pd.read_csv(SENTIMENT_FILE)
-    df_topics = pd.read_csv(TOPIC_FILE)
+    df = pd.read_csv(INPUT)
 
-    df['topic'] = df_topics['topic']
+    # Normalisation sentiment
+    df["sentiment"] = df["sentiment"].str.upper()
 
-    # Simple pivot pour business insights
-    insights = df.groupby('topic')['sentiment_label'].value_counts().unstack(fill_value=0)
+    # Aggregation par magasin + topic
+    store_level = (
+        df
+        .groupby(["place_name", "topic", "sentiment"])
+        .size()
+        .unstack(fill_value=0)
+        .reset_index()
+    )
+
+    store_level["level"] = "STORE"
+
+    # Aggregation globale
+    global_level = (
+        df
+        .groupby(["topic", "sentiment"])
+        .size()
+        .unstack(fill_value=0)
+        .reset_index()
+    )
+
+    global_level["place_name"] = "ALL_STORES"
+    global_level["level"] = "GLOBAL"
+
+    final_df = pd.concat([store_level, global_level], ignore_index=True)
+
     os.makedirs("data/processed", exist_ok=True)
-    insights.to_csv(OUTPUT_FILE)
-    print(f"Business insights saved: {OUTPUT_FILE}")
+    final_df.to_csv(OUTPUT, index=False)
+
+    print("Business insights generated")
 
 if __name__ == "__main__":
     main()
