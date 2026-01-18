@@ -2,6 +2,15 @@ import streamlit as st
 import pandas as pd
 from transformers import pipeline
 
+
+import subprocess
+
+subprocess.run(["python", "src/fetch_texts.py"])
+subprocess.run(["python", "src/sentiment_analysis.py"])
+subprocess.run(["python", "src/topic_classification.py"])
+subprocess.run(["python", "src/business_insights.py"])
+
+
 # -----------------------------
 # Streamlit page configuration
 # -----------------------------
