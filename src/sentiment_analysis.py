@@ -1,17 +1,22 @@
-import os
 import pandas as pd
 from transformers import pipeline
+import os
 
-INPUT_FILE = "data/raw/reviews_raw.csv"
-OUTPUT_FILE = "data/processed/sentiment_enriched.csv"
+INPUT = "data/raw/reviews_raw.csv"
+OUTPUT = "data/processed/sentiment_enriched.csv"
 
 def main():
-    df = pd.read_csv(INPUT_FILE)
-    sentiment_pipeline = pipeline("sentiment-analysis")
+    os.makedirs("data/processed", exist_ok=True)
+    df = pd.read_csv(INPUT)
 
-    df['sentiment_label'] = df['text'].apply(lambda x: sentiment_pipeline(x)[0]['label'])
-    df.to_csv(OUTPUT_FILE, index=False)
-    print(f"Sentiment added: {OUTPUT_FILE}")
+    sentiment = pipeline("sentiment-analysis")
+
+    df["sentiment"] = df["text"].apply(
+        lambda x: sentiment(x[:512])[0]["label"]
+    )
+
+    df.to_csv(OUTPUT, index=False)
+    print("Sentiment analysis completed")
 
 if __name__ == "__main__":
     main()
