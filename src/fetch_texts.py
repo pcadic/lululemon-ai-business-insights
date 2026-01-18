@@ -9,6 +9,9 @@ import time
 # ======================================
 
 GOOGLE_API_KEY = os.getenv("GOOGLE_MAPS_API_KEY")
+API_KEY = os.getenv("GOOGLE_MAPS_API_KEY")
+if not API_KEY:
+    raise EnvironmentError("GOOGLE_MAPS_API_KEY not set")
 
 TEXT_SEARCH_URL = "https://maps.googleapis.com/maps/api/place/textsearch/json"
 PLACE_DETAILS_URL = "https://maps.googleapis.com/maps/api/place/details/json"
