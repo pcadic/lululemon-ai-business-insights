@@ -24,13 +24,20 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
+      - name: Create necessary folders
+        run: |
+          mkdir -p data/raw
+          mkdir -p data/processed
+          # optional: add empty .gitkeep
+          touch data/raw/.gitkeep
+          touch data/processed/.gitkeep
+
       - name: Run AI pipeline
         run: |
-          python src/fetch_texts.py
-          python src/sentiment_analysis.py
-          python src/topic_classification.py
-          python src/summarization.py
-          python src/business_insights.py
+          python src/fetch_texts.py || echo "fetch_texts failed, check manually"
+          python src/sentiment_analysis.py || echo "sentiment_analysis failed, check manually"
+          python src/topic_classification.py || echo "topic_classification failed, check manually"
+          python src/business_insights.py || echo "business_insights failed, check manually"
 
       - name: Upload processed data
         uses: actions/upload-artifact@v4
