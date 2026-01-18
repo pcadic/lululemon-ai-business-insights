@@ -1,95 +1,52 @@
-import streamlit as st
+import subprocess
 import pandas as pd
+import streamlit as st
 from transformers import pipeline
 
-
-import subprocess
-
-subprocess.run(["python", "src/fetch_texts.py"])
-subprocess.run(["python", "src/sentiment_analysis.py"])
-subprocess.run(["python", "src/topic_classification.py"])
-subprocess.run(["python", "src/business_insights.py"])
-
-
-# -----------------------------
-# Streamlit page configuration
-# -----------------------------
-st.set_page_config(
-    page_title="Lululemon AI Business Insights",
-    layout="wide",
-)
+st.set_page_config(page_title="Lululemon AI Insights", layout="wide")
 
 st.title("Lululemon AI Business Insights Dashboard")
 
 # -----------------------------
-# Load CSVs
+# 1. Génération automatique des CSV (pipeline complet)
 # -----------------------------
-sentiment_file = "data/processed/sentiment_enriched.csv"
-topic_file = "data/processed/topic_enriched.csv"
-insights_file = "data/processed/business_insights.csv"
+st.info("Exécution du pipeline pour générer les données...")
 
-@st.cache_data
-def load_csv(path):
-    return pd.read_csv(path)
-
-try:
-    df_sentiment = load_csv(sentiment_file)
-    df_topic = load_csv(topic_file)
-    df_insights = load_csv(insights_file)
-except FileNotFoundError as e:
-    st.error(f"CSV not found: {e}")
-    st.stop()
+with st.spinner("Pipeline en cours..."):
+    subprocess.run(["python", "src/fetch_texts.py"])
+    subprocess.run(["python", "src/sentiment_analysis.py"])
+    subprocess.run(["python", "src/topic_classification.py"])
+    subprocess.run(["python", "src/business_insights.py"])
 
 # -----------------------------
-# Sidebar filters
+# 2. Lecture des CSV
 # -----------------------------
-st.sidebar.header("Filters")
-sources = df_sentiment['source'].unique()
-selected_sources = st.sidebar.multiselect("Select source(s):", sources, default=list(sources))
+df_sentiment = pd.read_csv("data/processed/sentiment_enriched.csv")
+df_topic = pd.read_csv("data/processed/topic_enriched.csv")
+df_insights = pd.read_csv("data/processed/business_insights.csv")
 
-df_sentiment_filtered = df_sentiment[df_sentiment['source'].isin(selected_sources)]
-df_topic_filtered = df_topic[df_topic['source'].isin(selected_sources)]
-
-# -----------------------------
-# Display business insights
-# -----------------------------
-st.subheader("Aggregated Business Insights")
-st.dataframe(df_insights.style.format("{:.2f}"))
+st.success("Données chargées !")
 
 # -----------------------------
-# Sentiment distribution
+# 3. Visualisations interactives
 # -----------------------------
-st.subheader("Sentiment Distribution by Source")
-sentiment_counts = df_sentiment_filtered.groupby(['source', 'sentiment_label']).size().unstack(fill_value=0)
-st.bar_chart(sentiment_counts)
+st.subheader("Business Insights")
+st.dataframe(df_insights)
 
-# -----------------------------
-# Topic distribution
-# -----------------------------
+st.subheader("Sentiment Distribution")
+st.bar_chart(df_sentiment['sentiment_label'].value_counts())
+
 st.subheader("Topic Distribution")
-topic_counts = df_topic_filtered.groupby(['topic']).size().sort_values(ascending=False)
-st.bar_chart(topic_counts)
+st.bar_chart(df_topic['topic'].value_counts())
 
 # -----------------------------
-# Sample texts with sentiment and topic
+# 4. Résumé automatique Hugging Face
 # -----------------------------
-st.subheader("Sample Texts")
-merged = pd.merge(df_sentiment_filtered, df_topic_filtered, on=['date', 'source', 'title', 'text'])
-st.dataframe(merged[['date', 'source', 'title', 'text', 'sentiment_label', 'sentiment_score', 'topic', 'topic_score']])
+st.subheader("Résumé AI des insights")
 
-# -----------------------------
-# Hugging Face automatic summary
-# -----------------------------
-st.subheader("Automatic Business Summary")
+summarizer = pipeline("summarization", model="facebook/bart-large-cnn")
 
-@st.cache_resource
-def get_summary(texts):
-    summarizer = pipeline("summarization", model="facebook/bart-large-cnn")
-    combined_text = " ".join(texts.tolist())
-    # limit length for large texts
-    combined_text = combined_text[:3000]
-    summary = summarizer(combined_text, max_length=150, min_length=50, do_sample=False)
-    return summary[0]['summary_text']
+combined_text = " ".join(df_insights['insight'].astype(str).tolist())
+summary = summarizer(combined_text, max_length=200, min_length=50, do_sample=False)[0]['summary_text']
 
-summary_text = get_summary(df_sentiment_filtered['text'])
-st.write(summary_text)
+st.write(summary)
