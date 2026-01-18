@@ -1,7 +1,9 @@
 name: Lululemon AI Insight Pipeline
 
 on:
-  workflow_dispatch:
+  schedule:
+    - cron: '0 9 * * 1'  # tous les lundis à 9h UTC
+  workflow_dispatch:  # pour exécuter manuellement si nécessaire
 
 
 jobs:
