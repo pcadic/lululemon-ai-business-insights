@@ -17,6 +17,14 @@ PLACE_IDS = [
     "ChIJN2t_tDeuEmsRUsoyG83frY5",
 ]
 
+
+# -----------------------------
+# Check Gogole Key
+# -----------------------------
+if not API_KEY:
+    raise ValueError("GOOGLE_PLACES_API_KEY not found in environment variables")
+
+
 # -----------------------------
 # Fonction pour récupérer les avis d’un place_id
 # -----------------------------
