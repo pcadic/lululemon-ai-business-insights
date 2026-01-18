@@ -1,106 +1,168 @@
-# Lululemon AI-driven Business Insights
+# Lululemon Customer Reviews – AI Business Insights
 
-[![Built with real public APIs](https://img.shields.io/badge/API-Public-blue)](https://huggingface.co)
-[![Open in Streamlit](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)](https://lululemon-ai-business-insights.streamlit.app)
+## 📌 Project Overview
 
+This project delivers **real, business-oriented insights from Google Maps customer reviews** for selected **Lululemon stores**, using a **fully cloud-based data pipeline**.
 
-## Overview
+The goal is to demonstrate how a Data Analyst can:
 
-This project demonstrates an end-to-end **AI-powered business insights pipeline** applied to **Lululemon textual data**. It is designed for **data analysts and business managers** to extract actionable insights from business communications and brand-related texts.  
+* Collect real-world, external data
+* Apply NLP techniques to extract value
+* Automate analysis workflows
+* Present insights clearly to non-technical stakeholders
 
-The pipeline uses:
-- **Hugging Face models** for sentiment analysis, topic classification, and summarization.
-- **GitHub Actions** for automation and reproducibility.
-- **Streamlit** for interactive visualization.
-
-> This project is a portfolio showcase demonstrating **real-world AI usage** in a business context.
-
----
-
-## Features
-
-1. **Text Ingestion**  
-   - Simulated real business texts from investor communications, press releases, and brand statements.  
-   - Stored in `data/raw/texts.csv`.
-
-2. **Sentiment Analysis**  
-   - Using `distilbert-base-uncased-finetuned-sst-2-english` from Hugging Face.  
-   - Adds `sentiment_label` (POSITIVE/NEGATIVE) and `sentiment_score`.
-
-3. **Zero-Shot Topic Classification**  
-   - Using `facebook/bart-large-mnli`.  
-   - Detects business-relevant themes such as `sustainability`, `pricing`, `customer service`, etc.
-
-4. **Business Insights Generation**  
-   - Aggregates sentiment and topics to produce **KPIs per theme**.  
-   - Outputs `business_insights.csv` with counts and percentages.
-
-5. **Interactive Visualization with Streamlit**  
-   - Shows KPIs, sentiment distributions per theme, texts with topics, and an automatic summary.
+➡️ **No local execution required.**
+➡️ **Everything runs in the cloud.**
 
 ---
 
-## Repository Structure
-.
-├── .github
-│ └── workflows
-│ └── pipeline.yml # GitHub Actions workflow
-├── data
-│ ├── raw
-│ └── processed
-├── src
-│ ├── fetch_texts.py
-│ ├── sentiment_analysis.py
-│ ├── topic_classification.py
-│ └── business_insights.py
-├── streamlit_app
-│ └── app.py
-├── requirements.txt
-└── README.md
+## 🧠 What This Project Shows (Recruiter-Focused)
 
+✔ Real external data (Google Maps reviews)
+✔ Automated weekly pipeline (GitHub Actions)
+✔ NLP-powered sentiment & topic analysis
+✔ Store-level and global insights
+✔ Interactive dashboard (Streamlit Cloud)
+✔ Clean separation between data processing and visualization
+
+This is a **business project**, not a toy or academic exercise.
 
 ---
 
-## Getting Started
+## 🏗️ Architecture (High-Level)
 
-1. **Install dependencies**
-
-```bash
-pip install -r requirements.txt streamlit
+```
+Google Maps Reviews
+        ↓
+GitHub Actions (Weekly)
+        ↓
+Python NLP Pipeline
+        ↓
+Processed CSV files
+        ↓
+Streamlit Cloud Dashboard
 ```
 
-2. **Run locally
+* **Heavy computation** happens offline (GitHub Actions)
+* **Dashboard** only reads precomputed data
+* Result: fast, clean, recruiter-friendly UX
 
-# Run the pipeline manually
-python src/fetch_texts.py
-python src/sentiment_analysis.py
-python src/topic_classification.py
-python src/business_insights.py
+---
 
-# Launch Streamlit
-streamlit run streamlit_app/app.py
+## 📂 Repository Structure
 
-3. **GitHub Actions
-The pipeline is fully automated via GitHub Actions.
-On push to main or manual trigger, the workflow:
+```
+.
+├── app.py                  # Streamlit dashboard
+├── src/                     # Data pipeline scripts
+│   ├── fetch_reviews.py     # Google Maps Text Search + Reviews
+│   ├── sentiment_analysis.py
+│   ├── topic_classification.py
+│   └── business_insights.py
+│
+├── data/
+│   ├── raw/                 # Raw reviews (CSV)
+│   └── processed/           # Enriched analysis outputs
+│
+├── .github/workflows/
+│   └── pipeline.yml         # Automated GitHub Actions workflow
+│
+├── requirements.txt
+└── README.md
+```
 
-Executes all scripts
+---
 
-Generates CSVs
+## 🔁 Automated Pipeline (GitHub Actions)
 
-Prepares artifacts for download or visualization
+* Runs **manually or weekly**
+* Fetches **real Google Maps reviews** using Text Search
+* Applies NLP models from **Hugging Face**
+* Generates updated CSV files
+* Commits updated outputs to the repository
 
-Screenshots
+📌 **No manual intervention required.**
 
-Hugging Face Models Used
-Task	Model
-Sentiment Analysis	distilbert-base-uncased-finetuned-sst-2-english
-Topic Classification	facebook/bart-large-mnli
-Summarization	facebook/bart-large-cnn
-Notes
+---
 
-All data are public or simulated business texts, ensuring compliance and reproducibility.
+## 🧪 NLP & Analysis
 
-The project highlights real AI workflow in a business context.
+### Sentiment Analysis
 
+* Positive / Neutral / Negative classification
+* Aggregated by store and globally
 
+### Topic Classification
+
+* Key customer themes (e.g. product quality, staff, pricing)
+* Automatically inferred using transformer models
+
+### Business Insights
+
+* Executive-level summaries
+* Comparison across locations
+* Actionable signals for decision-makers
+
+---
+
+## 📊 Dashboard (Streamlit Cloud)
+
+The Streamlit app is designed for **non-technical users**:
+
+* Global overview across all stores
+* Store-by-store comparison
+* Interactive filters
+* Drill-down to individual customer reviews
+
+⚡ Loads instantly (no live API calls)
+
+---
+
+## 🔐 API Key Management
+
+* Google Maps API key is stored securely as a **GitHub Secret**
+* Never hard-coded
+* Safe for public repositories
+
+---
+
+## 🆓 Cost & Limits
+
+* Google Maps API free tier respected
+* Limited number of stores & reviews per run
+* Designed to stay within free quotas
+
+---
+
+## 🎯 Why This Project Matters
+
+This project demonstrates:
+
+* End-to-end data ownership
+* Real-world data challenges
+* Cloud automation
+* Business-first analytics mindset
+
+It mirrors how **modern data teams actually work**.
+
+---
+
+## 🚀 Future Improvements
+
+* Add time-series trend analysis
+* Expand to competitor brands
+* Add keyword-based alerting
+* Store clustering by customer sentiment
+
+---
+
+## 👤 Author
+
+**Philip**
+Aspiring Data Analyst | Python | SQL | NLP | Business Analytics
+
+📍 Vancouver, Canada
+
+---
+
+*This project is intentionally designed to be simple to review, fast to load, and focused on business impact.*
