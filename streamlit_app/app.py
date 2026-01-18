@@ -1,35 +1,96 @@
-import pandas as pd
 import streamlit as st
-from transformers import pipeline
+import pandas as pd
 
-st.set_page_config(page_title="Lululemon AI Insights", layout="wide")
-st.title("Lululemon AI Business Insights Dashboard")
+# --------------------------------
+# Page config
+# --------------------------------
+st.set_page_config(
+    page_title="Lululemon – AI Business Insights",
+    layout="wide"
+)
 
-# -----------------------------
-# Charger les CSV déjà générés par GitHub Actions
-# -----------------------------
-df_sentiment = pd.read_csv("data/processed/sentiment_enriched.csv")
-df_topic = pd.read_csv("data/processed/topic_enriched.csv")
-df_insights = pd.read_csv("data/processed/business_insights.csv")
+st.title("🧠 Lululemon – AI Business Insights")
+st.caption("Real Google Maps reviews · Hugging Face NLP · Automated weekly pipeline")
 
-# -----------------------------
-# Affichage
-# -----------------------------
-st.subheader("Business Insights")
-st.dataframe(df_insights)
+# --------------------------------
+# Load data (pre-computed)
+# --------------------------------
+@st.cache_data
+def load_data():
+    sentiment = pd.read_csv("data/processed/sentiment_enriched.csv")
+    topics = pd.read_csv("data/processed/topic_enriched.csv")
+    insights = pd.read_csv("data/processed/business_insights.csv")
+    return sentiment, topics, insights
 
-st.subheader("Sentiment Distribution")
-st.bar_chart(df_sentiment['sentiment_label'].value_counts())
+sentiment_df, topic_df, insights_df = load_data()
 
-st.subheader("Topic Distribution")
-st.bar_chart(df_topic['topic'].value_counts())
+# --------------------------------
+# KPI section
+# --------------------------------
+st.subheader("📊 Executive KPIs")
 
-# -----------------------------
-# Résumé automatique Hugging Face
-# -----------------------------
-st.subheader("Résumé AI des insights")
-summarizer = pipeline("summarization", model="facebook/bart-large-cnn")
+col1, col2, col3 = st.columns(3)
 
-combined_text = " ".join(df_insights.apply(lambda row: " ".join(map(str,row)), axis=1).tolist())
-summary = summarizer(combined_text, max_length=200, min_length=50, do_sample=False)[0]['summary_text']
-st.write(summary)
+with col1:
+    st.metric(
+        "Total Reviews Analyzed",
+        len(sentiment_df)
+    )
+
+with col2:
+    positive_rate = (
+        (sentiment_df["sentiment_label"] == "POSITIVE").mean() * 100
+    )
+    st.metric(
+        "Positive Sentiment",
+        f"{positive_rate:.1f}%"
+    )
+
+with col3:
+    st.metric(
+        "Topics Detected",
+        topic_df["topic"].nunique()
+    )
+
+st.divider()
+
+# --------------------------------
+# Sentiment analysis
+# --------------------------------
+st.subheader("😊 Sentiment Distribution")
+
+sentiment_counts = sentiment_df["sentiment_label"].value_counts()
+st.bar_chart(sentiment_counts)
+
+# --------------------------------
+# Topic analysis
+# --------------------------------
+st.subheader("🏷️ Topic Distribution")
+
+topic_counts = topic_df["topic"].value_counts()
+st.bar_chart(topic_counts)
+
+# --------------------------------
+# Business insights table
+# --------------------------------
+st.subheader("📈 Business Insights by Topic")
+st.dataframe(insights_df, use_container_width=True)
+
+# --------------------------------
+# Raw review explorer (optional)
+# --------------------------------
+with st.expander("🔍 Explore Raw Reviews"):
+    st.dataframe(
+        sentiment_df[["place_name", "rating", "sentiment_label", "text"]],
+        use_container_width=True
+    )
+
+st.divider()
+
+# --------------------------------
+# Footer
+# --------------------------------
+st.caption(
+    "Pipeline automated via GitHub Actions · Data updated weekly · "
+    "No real-time API calls during visualization"
+)
