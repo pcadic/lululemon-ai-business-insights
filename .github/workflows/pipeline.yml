@@ -1,10 +1,12 @@
 name: Lululemon AI Insight Pipeline
 
 on:
+  workflow_dispatch:
   schedule:
-    # Exécute tous les lundis à 6h UTC
-    - cron: '0 6 * * 1'
-  workflow_dispatch:  # permet lancement manuel
+    - cron: '0 6 * * 1'  # Tous les lundis à 6h UTC
+  push:
+    branches:
+      - main
 
 jobs:
   run-pipeline:
@@ -24,9 +26,6 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      - name: Set Google Maps API key
-        run: echo "GOOGLE_MAPS_API_KEY=${{ secrets.GOOGLE_MAPS_API_KEY }}" >> $GITHUB_ENV
-
       - name: Run AI pipeline
         run: |
           python src/fetch_texts.py
@@ -34,16 +33,11 @@ jobs:
           python src/topic_classification.py
           python src/business_insights.py
 
-      - name: Commit and push updated CSVs
-        run: |
-          git config --global user.name "github-actions[bot]"
-          git config --global user.email "github-actions[bot]@users.noreply.github.com"
-          git add data/processed/*.csv
-          git commit -m "Update processed CSVs from scheduled AI pipeline" || echo "No changes to commit"
-          git push
-
-      - name: Upload processed data (artifacts)
+      - name: Upload processed CSVs
         uses: actions/upload-artifact@v4
         with:
           name: lululemon-ai-output
-          path: data/processed/
+          path: |
+            data/processed/business_insights.csv
+            data/processed/sentiment_enriched.csv
+            data/processed/topic_enriched.csv
