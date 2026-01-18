@@ -1,119 +1,68 @@
 import streamlit as st
 import pandas as pd
 
-st.set_page_config(
-    page_title="Customer Reviews Business Insights",
-    layout="wide"
-)
+# ======================================
+# Configuration
+# ======================================
+INSIGHTS_FILE = "data/processed/business_insights.csv"
+SENTIMENT_FILE = "data/processed/sentiment_enriched.csv"
+TOPIC_FILE = "data/processed/topic_enriched.csv"
 
-# =========================
-# DATA LOADING
-# =========================
+# ======================================
+# Titre
+# ======================================
+st.set_page_config(page_title="Lululemon Business Insights", layout="wide")
+st.title("Lululemon Business Insights Dashboard")
+st.markdown("Analyse des avis clients par magasin (Google Maps) – pipeline 100% cloud")
 
-@st.cache_data
-def load_data():
-    sentiment = pd.read_csv("data/processed/sentiment_enriched.csv")
-    topics = pd.read_csv("data/processed/topic_enriched.csv")
-    insights = pd.read_csv("data/processed/business_insights.csv")
-    return sentiment, topics, insights
+# ======================================
+# Lecture des fichiers
+# ======================================
+df_insights = pd.read_csv(INSIGHTS_FILE)
+df_sentiment = pd.read_csv(SENTIMENT_FILE)
+df_topic = pd.read_csv(TOPIC_FILE)
 
+# ======================================
+# Sélection du magasin
+# ======================================
+stores = df_insights["store_name"].tolist()
+store_selected = st.selectbox("Sélectionnez un magasin", stores)
 
-sentiment_df, topic_df, insights_df = load_data()
-
-# =========================
-# SIDEBAR
-# =========================
-
-st.sidebar.title("Filters")
-
-store_list = sorted(topic_df["place_name"].unique())
-selected_store = st.sidebar.selectbox(
-    "Select a store",
-    ["ALL_STORES"] + store_list
-)
-
-# =========================
-# HEADER
-# =========================
-
-st.title("📊 Customer Reviews Analysis")
-st.markdown(
-    """
-    This dashboard analyzes **real Google Maps customer reviews**
-    using **NLP and AI models**, aggregated automatically via a cloud pipeline.
-    """
-)
-
-# =========================
-# GLOBAL VIEW
-# =========================
-
-st.header("Executive Overview")
-
-if selected_store == "ALL_STORES":
-    global_df = insights_df[insights_df["level"] == "GLOBAL"]
-
-    col1, col2 = st.columns(2)
-
-    with col1:
-        st.subheader("Overall Sentiment Distribution")
-        sentiment_cols = [c for c in global_df.columns if c not in ["topic", "place_name", "level"]]
-        st.bar_chart(global_df.set_index("topic")[sentiment_cols])
-
-    with col2:
-        st.subheader("Top Topics (All Stores)")
-        topic_counts = topic_df["topic"].value_counts()
-        st.bar_chart(topic_counts)
-
-# =========================
-# STORE VIEW
-# =========================
-
+if store_selected == "Lululemon Total":
+    df_store_sentiment = df_sentiment
+    df_store_topic = df_topic
 else:
-    st.header(f"Store Analysis – {selected_store}")
+    df_store_sentiment = df_sentiment[df_sentiment["store_name"] == store_selected]
+    df_store_topic = df_topic[df_topic["store_name"] == store_selected]
 
-    store_insights = insights_df[
-        (insights_df["place_name"] == selected_store) &
-        (insights_df["level"] == "STORE")
-    ]
+# ======================================
+# KPIs
+# ======================================
+st.subheader("KPIs")
+kpi1, kpi2, kpi3 = st.columns(3)
 
-    col1, col2 = st.columns(2)
+kpi1.metric("Total reviews", len(df_store_sentiment))
+pos_ratio = round((df_store_sentiment["sentiment_label"]=="POSITIVE").mean()*100, 2)
+neg_ratio = round((df_store_sentiment["sentiment_label"]=="NEGATIVE").mean()*100, 2)
+kpi2.metric("Positive ratio (%)", pos_ratio)
+kpi3.metric("Negative ratio (%)", neg_ratio)
 
-    with col1:
-        st.subheader("Sentiment by Topic")
-        sentiment_cols = [c for c in store_insights.columns if c not in ["topic", "place_name", "level"]]
-        st.bar_chart(store_insights.set_index("topic")[sentiment_cols])
+# ======================================
+# Graphique des sentiments
+# ======================================
+st.subheader("Distribution des sentiments")
+sentiment_counts = df_store_sentiment["sentiment_label"].value_counts()
+st.bar_chart(sentiment_counts)
 
-    with col2:
-        st.subheader("Topic Distribution")
-        topic_counts = topic_df[topic_df["place_name"] == selected_store]["topic"].value_counts()
-        st.bar_chart(topic_counts)
+# ======================================
+# Graphique des topics
+# ======================================
+st.subheader("Top topics")
+topic_counts = df_store_topic["topic_label"].value_counts().head(10)
+st.bar_chart(topic_counts)
 
-# =========================
-# DRILL DOWN
-# =========================
-
-st.header("Detailed Reviews")
-
-filtered_reviews = topic_df.copy()
-
-if selected_store != "ALL_STORES":
-    filtered_reviews = filtered_reviews[
-        filtered_reviews["place_name"] == selected_store
-    ]
-
-st.dataframe(
-    filtered_reviews[["place_name", "rating", "sentiment", "topic", "text"]],
-    use_container_width=True,
-    height=400
-)
-
-# =========================
-# FOOTER
-# =========================
-
-st.markdown("---")
-st.caption(
-    "Data pipeline runs automatically via GitHub Actions. "
-    "Dashboard displays precomputed insights for fast recruiter review."
-)
+# ======================================
+# Aperçu des avis
+# ======================================
+st.subheader("Exemples d'avis")
+st.dataframe(df_store_sentiment[["text", "sentiment_label", "rating"]].head(10))
