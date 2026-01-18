@@ -1,69 +1,94 @@
 import os
 import requests
 import pandas as pd
+from datetime import datetime
+import time
 
-API_KEY = os.getenv("GOOGLE_PLACES_API_KEY")
-if not API_KEY:
-    raise ValueError("GOOGLE_PLACES_API_KEY not set")
+# ======================================
+# Configuration
+# ======================================
+
+GOOGLE_API_KEY = os.getenv("GOOGLE_MAPS_API_KEY")
+
+TEXT_SEARCH_URL = "https://maps.googleapis.com/maps/api/place/textsearch/json"
+PLACE_DETAILS_URL = "https://maps.googleapis.com/maps/api/place/details/json"
+
+QUERY = "Lululemon store Vancouver"
+MAX_STORES = 5          # Sécurité quota
+SLEEP_SECONDS = 1       # Respect API
 
 OUTPUT_DIR = "data/raw"
 OUTPUT_FILE = "reviews_raw.csv"
 
-QUERY = "lululemon store Vancouver"
-TEXT_SEARCH_URL = "https://maps.googleapis.com/maps/api/place/textsearch/json"
-DETAILS_URL = "https://maps.googleapis.com/maps/api/place/details/json"
+# ======================================
+# Helpers
+# ======================================
 
-
-def text_search():
+def text_search_stores():
     params = {
         "query": QUERY,
-        "key": API_KEY
+        "key": GOOGLE_API_KEY
     }
     response = requests.get(TEXT_SEARCH_URL, params=params)
-    return response.json().get("results", [])
+    response.raise_for_status()
+    results = response.json().get("results", [])
+    return results[:MAX_STORES]
 
 
-def get_place_reviews(place_id):
+def fetch_place_reviews(place_id):
     params = {
         "place_id": place_id,
-        "fields": "name,rating,reviews",
-        "key": API_KEY
+        "fields": "name,reviews,rating",
+        "key": GOOGLE_API_KEY
     }
-    response = requests.get(DETAILS_URL, params=params)
+    response = requests.get(PLACE_DETAILS_URL, params=params)
+    response.raise_for_status()
     result = response.json().get("result", {})
-    reviews = result.get("reviews", [])
+    return result.get("reviews", []), result.get("name")
 
-    rows = []
-    for r in reviews:
-        rows.append({
-            "place_id": place_id,
-            "place_name": result.get("name"),
-            "rating": r.get("rating"),
-            "text": r.get("text")
-        })
-    return rows
 
+# ======================================
+# Main
+# ======================================
 
 def main():
+    if not GOOGLE_API_KEY:
+        raise EnvironmentError("GOOGLE_MAPS_API_KEY not set")
+
     os.makedirs(OUTPUT_DIR, exist_ok=True)
-    all_rows = []
 
-    places = text_search()
-    for place in places:
-        place_id = place["place_id"]
-        all_rows.extend(get_place_reviews(place_id))
+    stores = text_search_stores()
+    all_reviews = []
 
-    df = pd.DataFrame(all_rows)
+    for store in stores:
+        place_id = store.get("place_id")
+        store_name = store.get("name")
+
+        reviews, detailed_name = fetch_place_reviews(place_id)
+
+        for r in reviews:
+            all_reviews.append({
+                "store_name": detailed_name or store_name,
+                "author": r.get("author_name"),
+                "rating": r.get("rating"),
+                "text": r.get("text"),
+                "time": datetime.utcfromtimestamp(
+                    r.get("time", 0)
+                ).date(),
+                "source": "Google Maps"
+            })
+
+        time.sleep(SLEEP_SECONDS)
+
+    if not all_reviews:
+        raise ValueError("No reviews fetched from Google Maps API")
+
+    df = pd.DataFrame(all_reviews)
     output_path = os.path.join(OUTPUT_DIR, OUTPUT_FILE)
     df.to_csv(output_path, index=False)
 
     print(f"{len(df)} reviews saved to {output_path}")
 
-    if df.empty:
-        raise ValueError("No reviews fetched from Google Maps API")
-
-
 
 if __name__ == "__main__":
     main()
-    
