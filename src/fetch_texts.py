@@ -1,71 +1,60 @@
 import os
 import pandas as pd
 from datetime import datetime
+import requests
 
 # -----------------------------
 # Configuration
 # -----------------------------
 OUTPUT_DIR = "data/raw"
-OUTPUT_FILE = "texts.csv"
-
-# -----------------------------
-# Sample real business texts
-# (stand-in for public sources)
-# -----------------------------
-TEXT_SOURCES = [
-    {
-        "source": "Investor Communication",
-        "title": "Lululemon Q3 Earnings Call",
-        "text": (
-            "Lululemon reported strong revenue growth driven by continued demand "
-            "for its core apparel categories. The company highlighted progress "
-            "in supply chain optimization and sustainability initiatives, while "
-            "acknowledging pricing pressures and increased competition."
-        ),
-    },
-    {
-        "source": "Press Release",
-        "title": "Lululemon Sustainability Update",
-        "text": (
-            "Lululemon reaffirmed its commitment to sustainable materials and "
-            "responsible sourcing. Investments in recycled fabrics and reduced "
-            "carbon emissions remain central to the brand’s long-term strategy."
-        ),
-    },
-    {
-        "source": "Brand Statement",
-        "title": "Customer Experience Focus",
-        "text": (
-            "Enhancing the in-store and digital customer experience continues to "
-            "be a priority. Lululemon is investing in store innovation, employee "
-            "training, and community engagement."
-        ),
-    },
+OUTPUT_FILE = "reviews_raw.csv"
+API_KEY = os.getenv("GOOGLE_PLACES_API_KEY")  # clé Google Cloud
+CITY = "Vancouver"
+BRAND = "Lululemon"
+PLACE_IDS = [
+    # Exemples d’IDs Google Places de quelques magasins Lululemon à Vancouver
+    "ChIJN1t_tDeuEmsRUsoyG83frY4",
+    "ChIJN2t_tDeuEmsRUsoyG83frY5",
 ]
 
 # -----------------------------
-# Main logic
+# Fonction pour récupérer les avis d’un place_id
+# -----------------------------
+def get_place_reviews(place_id):
+    url = (
+        f"https://maps.googleapis.com/maps/api/place/details/json"
+        f"?place_id={place_id}&fields=name,rating,reviews&key={API_KEY}"
+    )
+    r = requests.get(url)
+    data = r.json()
+    reviews = data.get("result", {}).get("reviews", [])
+    output = []
+    for rev in reviews:
+        output.append({
+            "place_id": place_id,
+            "place_name": data.get("result", {}).get("name", ""),
+            "author_name": rev.get("author_name"),
+            "rating": rev.get("rating"),
+            "text": rev.get("text"),
+            "time": rev.get("time")
+        })
+    return output
+
+# -----------------------------
+# Main
 # -----------------------------
 def main():
     os.makedirs(OUTPUT_DIR, exist_ok=True)
+    all_reviews = []
 
-    records = []
-    for item in TEXT_SOURCES:
-        records.append(
-            {
-                "date": datetime.utcnow().date(),
-                "source": item["source"],
-                "title": item["title"],
-                "text": item["text"],
-            }
-        )
+    for pid in PLACE_IDS:
+        reviews = get_place_reviews(pid)
+        all_reviews.extend(reviews)
 
-    df = pd.DataFrame(records)
+    df = pd.DataFrame(all_reviews)
     output_path = os.path.join(OUTPUT_DIR, OUTPUT_FILE)
     df.to_csv(output_path, index=False)
-
-    print(f"Saved {len(df)} texts to {output_path}")
-
+    print(f"Saved {len(df)} reviews to {output_path}")
 
 if __name__ == "__main__":
     main()
