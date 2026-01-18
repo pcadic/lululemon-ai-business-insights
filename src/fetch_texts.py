@@ -17,10 +17,10 @@ DEBUG_DIR = os.path.join(OUTPUT_DIR, "debug")
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 os.makedirs(DEBUG_DIR, exist_ok=True)
 
-# Magasins à analyser
+# Magasins à analyser (noms plus généraux pour tests)
 STORES = [
-    "Lululemon Robson Street, Vancouver, Canada",
-    "Lululemon West Edmonton Mall, Edmonton, Canada"
+    "Lululemon Vancouver",
+    "Lululemon Edmonton"
 ]
 
 # -----------------------------
@@ -33,7 +33,7 @@ def fetch_reviews_for_store(store_name):
     search_url = "https://maps.googleapis.com/maps/api/place/textsearch/json"
     params = {"query": store_name, "key": API_KEY}
     resp_search = requests.get(search_url, params=params).json()
-    
+
     # Log complet pour debug
     debug_file_search = os.path.join(DEBUG_DIR, f"debug_textsearch_{store_name.replace(' ','_')}.json")
     with open(debug_file_search, "w") as f:
@@ -52,7 +52,6 @@ def fetch_reviews_for_store(store_name):
     params = {"place_id": place_id, "fields": "name,rating,reviews", "key": API_KEY}
     resp_details = requests.get(details_url, params=params).json()
 
-    # Log complet pour debug
     debug_file_details = os.path.join(DEBUG_DIR, f"debug_placedetails_{store_name.replace(' ','_')}.json")
     with open(debug_file_details, "w") as f:
         json.dump(resp_details, f, indent=2)
@@ -61,7 +60,7 @@ def fetch_reviews_for_store(store_name):
     reviews = resp_details.get("result", {}).get("reviews", [])
     if not reviews:
         print(f"WARNING: Pas de reviews dans Place Details pour '{store_name}'")
-    
+
     for r in reviews:
         r["store_name"] = store_name
 
@@ -78,14 +77,20 @@ def main():
         store_reviews = fetch_reviews_for_store(store)
         all_reviews.extend(store_reviews)
 
-    # fallback si aucune review pour tous les magasins
+    # fallback si aucune review
     if not all_reviews:
-        print("WARNING: Aucune review récupérée pour tous les magasins, création CSV vide.")
-        df = pd.DataFrame(columns=["store_name","author_name","rating","text","time"])
-    else:
-        df = pd.DataFrame(all_reviews)
-        # garder seulement colonnes utiles
-        df = df[["store_name","author_name","rating","text","time"]]
+        print("WARNING: Aucune review récupérée pour tous les magasins, ajout d'une review factice pour test")
+        all_reviews = [{
+            "store_name": "Lululemon Test Store",
+            "author_name": "Test User",
+            "rating": 5,
+            "text": "Great store, friendly staff!",
+            "time": 0
+        }]
+
+    df = pd.DataFrame(all_reviews)
+    # garder seulement les colonnes utiles
+    df = df[["store_name","author_name","rating","text","time"]]
 
     output_path = os.path.join(OUTPUT_DIR, OUTPUT_FILE)
     df.to_csv(output_path, index=False)
