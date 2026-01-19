@@ -1,96 +1,69 @@
 import os
-import pandas as pd
 import requests
-import json
+import pandas as pd
+from datetime import datetime
 
-# -----------------------------
-# Config
-# -----------------------------
 API_KEY = os.getenv("GOOGLE_MAPS_API_KEY")
-if not API_KEY:
-    raise EnvironmentError("GOOGLE_MAPS_API_KEY not set")
 
-OUTPUT_DIR = "data/raw"
-OUTPUT_FILE = "reviews_raw.csv"
-DEBUG_DIR = os.path.join(OUTPUT_DIR, "debug")
-os.makedirs(OUTPUT_DIR, exist_ok=True)
-os.makedirs(DEBUG_DIR, exist_ok=True)
-
-# Magasins à analyser (Vancouver uniquement)
 STORES = [
-    "Lululemon Robson Street, Vancouver, Canada",
-    "Lululemon Oakridge Centre, Vancouver, Canada",
-    "Lululemon Metropolis at Metrotown, Burnaby, Canada"
+    "Lululemon Robson Street Vancouver",
+    "Lululemon Georgia Street Pacific Centre Vancouver",
+    "Lululemon Kitsilano Vancouver",
+    "Lululemon Metropolis at Metrotown",
+    "Lululemon Richmond at Richmon Centre",
+    "Lululemon Burnaby Brentwood",
+    "Lululemon West Vancouver Park Royal",
 ]
 
-# -----------------------------
-# Fonctions
-# -----------------------------
-def fetch_reviews_for_store(store_name):
-    print(f"\nDEBUG: Start fetching reviews for '{store_name}'")
+RAW_DIR = "data/raw"
+OUTPUT_FILE = f"{RAW_DIR}/reviews_raw.csv"
 
-    # 1️⃣ Text Search
-    search_url = "https://maps.googleapis.com/maps/api/place/textsearch/json"
-    params = {"query": store_name, "key": API_KEY}
-    resp_search = requests.get(search_url, params=params).json()
+def text_search(query):
+    url = "https://maps.googleapis.com/maps/api/place/textsearch/json"
+    params = {"query": query, "key": API_KEY}
+    return requests.get(url, params=params).json()
 
-    debug_file_search = os.path.join(DEBUG_DIR, f"debug_textsearch_{store_name.replace(' ','_')}.json")
-    with open(debug_file_search, "w") as f:
-        json.dump(resp_search, f, indent=2)
-    print(f"DEBUG: Text Search response saved to {debug_file_search}")
+def place_details(place_id):
+    url = "https://maps.googleapis.com/maps/api/place/details/json"
+    params = {
+        "place_id": place_id,
+        "fields": "name,reviews",
+        "key": API_KEY,
+    }
+    return requests.get(url, params=params).json()
 
-    if not resp_search.get("results"):
-        print(f"WARNING: Aucun résultat Text Search pour '{store_name}'")
-        return []
-
-    place_id = resp_search["results"][0]["place_id"]
-    print(f"DEBUG: Found place_id={place_id} for '{store_name}'")
-
-    # 2️⃣ Place Details
-    details_url = "https://maps.googleapis.com/maps/api/place/details/json"
-    params = {"place_id": place_id, "fields": "name,rating,reviews", "key": API_KEY}
-    resp_details = requests.get(details_url, params=params).json()
-
-    debug_file_details = os.path.join(DEBUG_DIR, f"debug_placedetails_{store_name.replace(' ','_')}.json")
-    with open(debug_file_details, "w") as f:
-        json.dump(resp_details, f, indent=2)
-    print(f"DEBUG: Place Details response saved to {debug_file_details}")
-
-    reviews = resp_details.get("result", {}).get("reviews", [])
-    for r in reviews:
-        r["store_name"] = store_name
-
-    print(f"DEBUG: Number of reviews fetched for '{store_name}': {len(reviews)}")
-    return reviews
-
-# -----------------------------
-# Main
-# -----------------------------
 def main():
-    all_reviews = []
+    if not API_KEY:
+        raise EnvironmentError("GOOGLE_MAPS_API_KEY not set")
+
+    os.makedirs(RAW_DIR, exist_ok=True)
+    records = []
 
     for store in STORES:
-        store_reviews = fetch_reviews_for_store(store)
-        all_reviews.extend(store_reviews)
+        print(f"Fetching: {store}")
+        search = text_search(store)
 
-    # fallback si aucune review
-    if not all_reviews:
-        print("WARNING: Aucune review récupérée, ajout d'une review factice pour test")
-        all_reviews = [{
-            "store_name": "Lululemon Vancouver Test",
-            "author_name": "Test User",
-            "rating": 5,
-            "text": "Great store, friendly staff!",
-            "time": 0
-        }]
+        if not search.get("results"):
+            print(f"⚠️ No Text Search result for {store}")
+            continue
 
-    df = pd.DataFrame(all_reviews)
-    df = df[["store_name","author_name","rating","text","time"]]
+        place_id = search["results"][0]["place_id"]
+        details = place_details(place_id)
 
-    output_path = os.path.join(OUTPUT_DIR, OUTPUT_FILE)
-    df.to_csv(output_path, index=False)
-    print(f"Saved {len(df)} reviews to {output_path}")
+        reviews = details.get("result", {}).get("reviews", [])
+        print(f"→ {len(reviews)} reviews")
 
+        for r in reviews:
+            records.append({
+                "date": datetime.utcnow().date(),
+                "store_name": store,
+                "rating": r.get("rating"),
+                "text": r.get("text"),
+            })
+
+    df = pd.DataFrame(records)
+    df.to_csv(OUTPUT_FILE, index=False)
+    print(f"Saved {len(df)} reviews → {OUTPUT_FILE}")
 
 if __name__ == "__main__":
     main()
