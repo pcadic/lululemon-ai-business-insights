@@ -47,6 +47,68 @@ st.markdown(f"""
 st.divider()
 
 # -----------------------------
+# Network-level overview
+# -----------------------------
+st.subheader("🌎 Network Overview – All Vancouver Stores")
+
+col1, col2, col3 = st.columns(3)
+
+with col1:
+    st.metric(
+        "Total Reviews",
+        len(sentiment_df)
+    )
+
+with col2:
+    st.metric(
+        "Positive Sentiment (%)",
+        f"{(sentiment_df['sentiment'] == 'POSITIVE').mean() * 100:.1f}%"
+    )
+
+with col3:
+    st.metric(
+        "Stores Covered",
+        sentiment_df["store_name"].nunique()
+    )
+st.subheader("🙂 Overall Customer Sentiment")
+
+global_sentiment = (
+    sentiment_df["sentiment"]
+    .value_counts()
+    .rename_axis("sentiment")
+    .reset_index(name="count")
+)
+
+st.bar_chart(
+    global_sentiment.set_index("sentiment")
+)
+st.subheader("🧠 Most Mentioned Topics Across All Stores")
+
+global_topics = (
+    topics_df["topic"]
+    .value_counts()
+    .head(7)
+    .reset_index()
+    .rename(columns={"index": "Topic", "topic": "Mentions"})
+)
+
+st.dataframe(global_topics, use_container_width=True)
+
+st.subheader("🚩 Recurring Network Pain Points")
+
+network_issues = (
+    insights_df
+    .groupby("topic")["count"]
+    .sum()
+    .sort_values(ascending=False)
+    .head(5)
+    .reset_index()
+)
+
+st.dataframe(network_issues, use_container_width=True)
+
+
+# -----------------------------
 # Store selector
 # -----------------------------
 stores = sorted(sentiment_df["store_name"].unique())
