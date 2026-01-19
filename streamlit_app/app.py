@@ -1,175 +1,302 @@
 import streamlit as st
 import pandas as pd
+from pathlib import Path
 
 # -----------------------------
-# Config
+# Streamlit config
 # -----------------------------
 st.set_page_config(
-    page_title="Lululemon – AI Business Insights",
+    page_title="Lululemon AI Business Insights",
     layout="wide"
 )
 
-st.title("Lululemon – AI Business Insights (Vancouver)")
-st.caption(
-    "Automated analysis of Google Maps customer reviews using NLP "
-    "(Sentiment Analysis & Topic Classification via Hugging Face)."
-)
+st.title("🧠 Lululemon AI Business Insights")
+st.caption("Retail sentiment & topic analysis powered by Google Maps reviews")
+
+# -----------------------------
+# Paths (CSV committed in repo)
+# -----------------------------
+DATA_DIR = Path("data/processed")
+
+SENTIMENT_PATH = DATA_DIR / "sentiment_enriched.csv"
+TOPIC_PATH = DATA_DIR / "topic_enriched.csv"
+INSIGHTS_PATH = DATA_DIR / "business_insights.csv"
 
 # -----------------------------
 # Load data
 # -----------------------------
 @st.cache_data
 def load_data():
-    sentiment = pd.read_csv("data/processed/sentiment_enriched.csv")
-    topics = pd.read_csv("data/processed/topic_enriched.csv")
-    insights = pd.read_csv("data/processed/business_insights.csv")
+    sentiment = pd.read_csv(SENTIMENT_PATH)
+    topics = pd.read_csv(TOPIC_PATH)
+    insights = pd.read_csv(INSIGHTS_PATH)
     return sentiment, topics, insights
 
-sentiment_df, topics_df, insights_df = load_data()
+
+try:
+    sentiment_df, topics_df, insights_df = load_data()
+except FileNotFoundError:
+    st.error("Processed CSV files not found. Please check the repository.")
+    st.stop()
 
 # -----------------------------
-# Executive Summary
+# Sidebar
 # -----------------------------
-st.subheader("📌 Executive Summary")
+st.sidebar.header("🔍 View Options")
 
-total_reviews = len(sentiment_df)
-positive_pct = (
-    (sentiment_df["sentiment"] == "POSITIVE").mean() * 100
-)
-
-st.markdown(f"""
-- **Total reviews analyzed:** {total_reviews}
-- **Positive sentiment:** {positive_pct:.1f}%
-- **Scope:** Lululemon stores in Vancouver
-- **Data source:** Google Maps Reviews
-""")
-
-st.divider()
-
-# -----------------------------
-# Network-level overview
-# -----------------------------
-st.subheader("🌎 Network Overview – All Vancouver Stores")
-
-col1, col2, col3 = st.columns(3)
-
-with col1:
-    st.metric(
-        "Total Reviews",
-        len(sentiment_df)
-    )
-
-with col2:
-    st.metric(
-        "Positive Sentiment (%)",
-        f"{(sentiment_df['sentiment'] == 'POSITIVE').mean() * 100:.1f}%"
-    )
-
-with col3:
-    st.metric(
-        "Stores Covered",
-        sentiment_df["store_name"].nunique()
-    )
-st.subheader("🙂 Overall Customer Sentiment")
-
-global_sentiment = (
-    sentiment_df["sentiment"]
-    .value_counts()
-    .rename_axis("sentiment")
-    .reset_index(name="count")
-)
-
-st.bar_chart(
-    global_sentiment.set_index("sentiment")
-)
-st.subheader("🧠 Most Mentioned Topics Across All Stores")
-
-global_topics = (
-    topics_df["topic"]
-    .value_counts()
-    .head(7)
-    .reset_index()
-    .rename(columns={"index": "Topic", "topic": "Mentions"})
-)
-
-st.dataframe(global_topics, use_container_width=True)
-
-st.subheader("🚩 Recurring Network Pain Points")
-
-network_issues = (
-    insights_df
-    .groupby("topic")["count"]
-    .sum()
-    .sort_values(ascending=False)
-    .head(5)
-    .reset_index()
-)
-
-st.dataframe(network_issues, use_container_width=True)
-
-
-# -----------------------------
-# Store selector
-# -----------------------------
 stores = sorted(sentiment_df["store_name"].unique())
-selected_store = st.selectbox("Select a store", stores)
-
-store_sentiment = sentiment_df[
-    sentiment_df["store_name"] == selected_store
-]
-store_topics = topics_df[
-    topics_df["store_name"] == selected_store
-]
-store_insights = insights_df[
-    insights_df["store_name"] == selected_store
-]
-
-# -----------------------------
-# Sentiment section
-# -----------------------------
-st.subheader("🙂 Customer Sentiment")
-
-sentiment_counts = (
-    store_sentiment["sentiment"]
-    .value_counts()
-    .rename_axis("sentiment")
-    .reset_index(name="count")
-)
-
-st.bar_chart(
-    sentiment_counts.set_index("sentiment")
+selected_store = st.sidebar.selectbox(
+    "Select a store",
+    ["All Stores (Network View)"] + stores
 )
 
 # -----------------------------
-# Topics section
+# Network-level metrics
 # -----------------------------
-st.subheader("🧠 Key Topics Identified")
-
-top_topics = (
-    store_topics["topic"]
-    .value_counts()
-    .head(5)
-    .reset_index()
-    .rename(columns={"index": "Topic", "topic": "Mentions"})
+network_positive_rate = (
+    (sentiment_df["sentiment"] == "POSITIVE").mean()
 )
 
-st.dataframe(top_topics, use_container_width=True)
+network_review_count = len(sentiment_df)
 
 # -----------------------------
-# Business insights
+# NETWORK VIEW
 # -----------------------------
-st.subheader("📊 Business Insights")
+if selected_store == "All Stores (Network View)":
 
-st.dataframe(
-    store_insights.sort_values("count", ascending=False),
-    use_container_width=True
-)
+    st.header("🌍 Network Overview")
+
+    col1, col2, col3 = st.columns(3)
+
+    col1.metric(
+        "Total Reviews",
+        f"{network_review_count}"
+    )
+
+    col2.metric(
+        "Positive Sentiment Rate",
+        f"{network_positive_rate * 100:.1f}%"
+    )
+
+    col3.metric(
+        "Stores Covered",
+        len(stores)
+    )
+
+    st.divider()
+
+    # -----------------------------
+    # Network topic distribution
+    # -----------------------------
+    st.subheader("📊 Main Topics Across All Stores")
+
+    topic_dist = (
+        topics_df
+        .groupby("topic")
+        .size()
+        .reset_index(name="mentions")
+        .sort_values("mentions", ascending=False)
+    )
+
+    st.bar_chart(
+        topic_dist.set_index("topic"),
+        use_container_width=True
+    )
+
+    st.divider()
+
+    # -----------------------------
+    # Business insights (network)
+    # -----------------------------
+    st.subheader("🧩 Key Business Insights")
+
+    st.dataframe(
+        insights_df,
+        use_container_width=True
+    )
+
+# -----------------------------
+# STORE VIEW
+# -----------------------------
+else:
+    st.header(f"🏬 Store Analysis — {selected_store}")
+
+    store_df = sentiment_df[
+        sentiment_df["store_name"] == selected_store
+    ]
+
+    store_topics_df = topics_df[
+        topics_df["store_name"] == selected_store
+    ]
+
+    store_positive_rate = (
+        (store_df["sentiment"] == "POSITIVE").mean()
+    )
+
+    # -----------------------------
+    # Store KPIs
+    # -----------------------------
+    st.subheader("📈 Store Performance")
+
+    delta_vs_network = store_positive_rate - network_positive_rate
+
+    col1, col2, col3 = st.columns(3)
+
+    col1.metric(
+        "Store Reviews",
+        len(store_df)
+    )
+
+    col2.metric(
+        "Positive Sentiment",
+        f"{store_positive_rate * 100:.1f}%"
+    )
+
+    col3.metric(
+        "Delta vs Network",
+        f"{delta_vs_network * 100:+.1f}%",
+        delta=f"{delta_vs_network * 100:+.1f}%"
+    )
+
+    st.divider()
+
+    # -----------------------------
+    # Topic distribution (store)
+    # -----------------------------
+    st.subheader("🗂️ Topic Distribution — Store")
+
+    store_topic_dist = (
+        store_topics_df
+        .groupby("topic")
+        .size()
+        .reset_index(name="mentions")
+        .sort_values("mentions", ascending=False)
+    )
+
+    st.bar_chart(
+        store_topic_dist.set_index("topic"),
+        use_container_width=True
+    )
+
+    st.divider()
+
+    # -----------------------------
+    # Store vs Network — Strengths & Weaknesses
+    # -----------------------------
+    st.subheader("💪 Strengths & ⚠️ Weaknesses")
+
+    network_topics = (
+        topics_df
+        .groupby("topic")
+        .size()
+        .rename("network_mentions")
+    )
+
+    store_topics = (
+        store_topics_df
+        .groupby("topic")
+        .size()
+        .rename("store_mentions")
+    )
+
+    comparison = (
+        pd.concat([store_topics, network_topics], axis=1)
+        .fillna(0)
+    )
+
+    comparison["lift_vs_network"] = (
+        comparison["store_mentions"] /
+        comparison["network_mentions"].replace(0, 1)
+    )
+
+    strengths = (
+        comparison
+        .sort_values("lift_vs_network", ascending=False)
+        .head(3)
+        .reset_index()
+    )
+
+    weaknesses = (
+        comparison
+        .sort_values("lift_vs_network", ascending=True)
+        .head(3)
+        .reset_index()
+    )
+
+    col1, col2 = st.columns(2)
+
+    with col1:
+        st.markdown("### 💪 Strengths")
+        st.dataframe(strengths, use_container_width=True)
+
+    with col2:
+        st.markdown("### ⚠️ Weaknesses")
+        st.dataframe(weaknesses, use_container_width=True)
+
+    st.divider()
+
+    # -----------------------------
+    # Actionable Insights KPI
+    # -----------------------------
+    st.subheader("🎯 Actionable Insight Rate")
+
+    actionable_topics = [
+        "staff",
+        "service",
+        "returns",
+        "checkout",
+        "pricing",
+        "fitting_room"
+    ]
+
+    network_actionable_reviews = sentiment_df[
+        sentiment_df["review_id"].isin(
+            topics_df[
+                topics_df["topic"].isin(actionable_topics)
+            ]["review_id"]
+        )
+    ]
+
+    store_actionable_reviews = store_df[
+        store_df["review_id"].isin(
+            store_topics_df[
+                store_topics_df["topic"].isin(actionable_topics)
+            ]["review_id"]
+        )
+    ]
+
+    network_actionable_rate = (
+        len(network_actionable_reviews) / len(sentiment_df)
+    )
+
+    store_actionable_rate = (
+        len(store_actionable_reviews) / len(store_df)
+        if len(store_df) > 0 else 0
+    )
+
+    col1, col2, col3 = st.columns(3)
+
+    col1.metric(
+        "Store Actionable %",
+        f"{store_actionable_rate * 100:.1f}%"
+    )
+
+    col2.metric(
+        "Network Actionable %",
+        f"{network_actionable_rate * 100:.1f}%"
+    )
+
+    col3.metric(
+        "Gap",
+        f"{(store_actionable_rate - network_actionable_rate) * 100:+.1f}%"
+    )
 
 # -----------------------------
 # Footer
 # -----------------------------
 st.divider()
 st.caption(
-    "Pipeline fully automated via GitHub Actions • "
-    "Updated weekly • No manual intervention"
+    "📌 Data collected weekly via Google Maps • "
+    "Analysis automated with GitHub Actions • "
+    "Dashboard hosted on Streamlit Cloud"
 )
