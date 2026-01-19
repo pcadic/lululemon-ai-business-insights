@@ -240,56 +240,51 @@ else:
     # -----------------------------
     st.subheader("🎯 Actionable Insight Rate")
 
-    actionable_topics = [
-        "staff",
-        "service",
-        "returns",
-        "checkout",
-        "pricing",
-        "fitting_room"
-    ]
+actionable_topics = [
+    "staff",
+    "service",
+    "returns",
+    "checkout",
+    "pricing",
+    "fitting_room"
+]
 
-    network_actionable_reviews = sentiment_df[
-        sentiment_df["review_id"].isin(
-            topics_df[
-                topics_df["topic"].isin(actionable_topics)
-            ]["review_id"]
-        )
-    ]
+# Network actionable rate
+network_actionable_reviews = topics_df[
+    topics_df["topic"].isin(actionable_topics)
+]
 
-    store_actionable_reviews = store_df[
-        store_df["review_id"].isin(
-            store_topics_df[
-                store_topics_df["topic"].isin(actionable_topics)
-            ]["review_id"]
-        )
-    ]
+network_actionable_rate = (
+    network_actionable_reviews.shape[0] / topics_df.shape[0]
+)
 
-    network_actionable_rate = (
-        len(network_actionable_reviews) / len(sentiment_df)
-    )
+# Store actionable rate
+store_actionable_reviews = store_topics_df[
+    store_topics_df["topic"].isin(actionable_topics)
+]
 
-    store_actionable_rate = (
-        len(store_actionable_reviews) / len(store_df)
-        if len(store_df) > 0 else 0
-    )
+store_actionable_rate = (
+    store_actionable_reviews.shape[0] / store_topics_df.shape[0]
+    if store_topics_df.shape[0] > 0 else 0
+)
 
-    col1, col2, col3 = st.columns(3)
+col1, col2, col3 = st.columns(3)
 
-    col1.metric(
-        "Store Actionable %",
-        f"{store_actionable_rate * 100:.1f}%"
-    )
+col1.metric(
+    "Store Actionable %",
+    f"{store_actionable_rate * 100:.1f}%"
+)
 
-    col2.metric(
-        "Network Actionable %",
-        f"{network_actionable_rate * 100:.1f}%"
-    )
+col2.metric(
+    "Network Actionable %",
+    f"{network_actionable_rate * 100:.1f}%"
+)
 
-    col3.metric(
-        "Gap",
-        f"{(store_actionable_rate - network_actionable_rate) * 100:+.1f}%"
-    )
+col3.metric(
+    "Gap",
+    f"{(store_actionable_rate - network_actionable_rate) * 100:+.1f}%"
+)
+
 
 # -----------------------------
 # Footer
