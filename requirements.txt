@@ -1,23 +1,10 @@
-# Core data
 pandas
 numpy
-
-# NLP & ML
 transformers
 torch
 scikit-learn
-sentencepiece
-
-# Streamlit & visualization
 streamlit
 altair
-
-# Requests for API calls
 requests
-
-# Optional: environment variables
 python-dotenv
-
-# Optional: nicer logging
-rich
-loguru
+sentencepiece
