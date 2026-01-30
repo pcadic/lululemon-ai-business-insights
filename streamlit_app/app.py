@@ -96,23 +96,23 @@ else:
     import plotly.graph_objects as go
     
     # Exemple : DataFrame avec colonnes topic, pos_count, neg_count
-    df = topics_df.groupby(['topic', 'sentiment']).size().unstack(fill_value=0).reset_index()
+    # df = topics_df.groupby(['topic', 'sentiment']).size().unstack(fill_value=0).reset_index()
     # On crée des barres divergentes : négatif en négatif
-    df['NEGATIVE'] = -df['NEGATIVE']
+    # df['NEGATIVE'] = -df['NEGATIVE']
     
-    fig = go.Figure()
-    fig.add_trace(go.Bar(y=df['topic'], x=df['NEGATIVE'], name='Negative', orientation='h', marker_color='tomato'))
-    fig.add_trace(go.Bar(y=df['topic'], x=df['POSITIVE'], name='Positive', orientation='h', marker_color='mediumseagreen'))
+    # fig = go.Figure()
+    # fig.add_trace(go.Bar(y=df['topic'], x=df['NEGATIVE'], name='Negative', orientation='h', marker_color='tomato'))
+    # fig.add_trace(go.Bar(y=df['topic'], x=df['POSITIVE'], name='Positive', orientation='h', marker_color='mediumseagreen'))
     
-    fig.update_layout(
-        barmode='relative',
-        title="Topic Sentiment Diverging Chart",
-        xaxis_title="Number of reviews",
-        yaxis_title="Topics",
-        xaxis_tickformat=",d"
-    )
+    # fig.update_layout(
+    #     barmode='relative',
+    #     title="Topic Sentiment Diverging Chart",
+    #     xaxis_title="Number of reviews",
+    #     yaxis_title="Topics",
+     #    xaxis_tickformat=",d"
+   #  )
     
-    st.plotly_chart(fig, use_container_width=True)
+    # st.plotly_chart(fig, use_container_width=True)
 
 
 st.caption("📌 Data collected weekly via Google Maps • Analysis automated with GitHub Actions • Dashboard hosted on Streamlit Cloud")
