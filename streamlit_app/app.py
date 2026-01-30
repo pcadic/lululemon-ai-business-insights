@@ -83,14 +83,36 @@ else:
                  x="topic", y="mentions", text="mentions")
     st.plotly_chart(fig, use_container_width=True)
 
-    st.subheader("🎯 Actionable Insight Rate")
-    actionable_topics = ["staff","service","returns","checkout","pricing","fitting_room"]
-    store_actionable_rate = store_topics_df[store_topics_df["topic"].isin(actionable_topics)].shape[0] / max(len(store_topics_df),1)
-    network_actionable_rate = topics_df[topics_df["topic"].isin(actionable_topics)].shape[0] / max(len(topics_df),1)
+    # st.subheader("🎯 Actionable Insight Rate")
+    # actionable_topics = ["staff","service","returns","checkout","pricing","fitting_room"]
+    # store_actionable_rate = store_topics_df[store_topics_df["topic"].isin(actionable_topics)].shape[0] / max(len(store_topics_df),1)
+    # network_actionable_rate = topics_df[topics_df["topic"].isin(actionable_topics)].shape[0] / max(len(topics_df),1)
 
-    col1, col2, col3 = st.columns(3)
-    col1.metric("Store Actionable %", f"{store_actionable_rate*100:.1f}%")
-    col2.metric("Network Actionable %", f"{network_actionable_rate*100:.1f}%")
-    col3.metric("Gap", f"{(store_actionable_rate-network_actionable_rate)*100:+.1f}%")
+    # col1, col2, col3 = st.columns(3)
+    # col1.metric("Store Actionable %", f"{store_actionable_rate*100:.1f}%")
+    # col2.metric("Network Actionable %", f"{network_actionable_rate*100:.1f}%")
+    # col3.metric("Gap", f"{(store_actionable_rate-network_actionable_rate)*100:+.1f}%")
+
+    import plotly.graph_objects as go
+    
+    # Exemple : DataFrame avec colonnes topic, pos_count, neg_count
+    df = topics_df.groupby(['topic', 'sentiment']).size().unstack(fill_value=0).reset_index()
+    # On crée des barres divergentes : négatif en négatif
+    df['NEGATIVE'] = -df['NEGATIVE']
+    
+    fig = go.Figure()
+    fig.add_trace(go.Bar(y=df['topic'], x=df['NEGATIVE'], name='Negative', orientation='h', marker_color='tomato'))
+    fig.add_trace(go.Bar(y=df['topic'], x=df['POSITIVE'], name='Positive', orientation='h', marker_color='mediumseagreen'))
+    
+    fig.update_layout(
+        barmode='relative',
+        title="Topic Sentiment Diverging Chart",
+        xaxis_title="Number of reviews",
+        yaxis_title="Topics",
+        xaxis_tickformat=",d"
+    )
+    
+    st.plotly_chart(fig, use_container_width=True)
+
 
 st.caption("📌 Data collected weekly via Google Maps • Analysis automated with GitHub Actions • Dashboard hosted on Streamlit Cloud")
