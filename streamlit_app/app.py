@@ -50,10 +50,11 @@ network_review_count = len(sentiment_df)
 # -----------------------------
 # Helper: Diverging bar chart
 # -----------------------------
-def plot_diverging_topic_sentiment(df_topics, df_sentiment, title):
-    merged = df_topics.merge(
-        df_sentiment[["review_id", "sentiment"]],
-        on="review_id",
+def plot_diverging_topic_sentiment(topics_df, sentiment_df, title):
+    # Join via store_name (niveau magasin)
+    merged = topics_df.merge(
+        sentiment_df[["store_name", "sentiment"]],
+        on="store_name",
         how="left"
     )
 
@@ -78,7 +79,6 @@ def plot_diverging_topic_sentiment(df_topics, df_sentiment, title):
     fig.add_bar(
         y=topic_sentiment["topic"],
         x=topic_sentiment["NEGATIVE"],
-        base=0,
         orientation="h",
         name="Negative reviews",
         marker_color="tomato"
@@ -87,7 +87,6 @@ def plot_diverging_topic_sentiment(df_topics, df_sentiment, title):
     fig.add_bar(
         y=topic_sentiment["topic"],
         x=topic_sentiment["POSITIVE"],
-        base=0,
         orientation="h",
         name="Positive reviews",
         marker_color="mediumseagreen"
@@ -95,7 +94,7 @@ def plot_diverging_topic_sentiment(df_topics, df_sentiment, title):
 
     fig.update_layout(
         title=title,
-        barmode="overlay",
+        barmode="relative",
         xaxis=dict(
             title="Number of reviews",
             range=[-max_value, max_value],
@@ -109,6 +108,7 @@ def plot_diverging_topic_sentiment(df_topics, df_sentiment, title):
     )
 
     return fig
+
 
 # -----------------------------
 # Network View
