@@ -1,7 +1,6 @@
 import streamlit as st
 import pandas as pd
 import plotly.express as px
-import plotly.graph_objects as go
 from pathlib import Path
 
 st.set_page_config(page_title="Lululemon AI Insights", layout="wide")
@@ -45,47 +44,30 @@ network_positive_rate = (sentiment_df["sentiment"] == "POSITIVE").mean()
 network_review_count = len(sentiment_df)
 
 # -----------------------------
-# Helper: Diverging topic chart
+# Helper: Sentiment Score Bar Chart
 # -----------------------------
-def topic_sentiment_diverging(df):
-    agg = (
-        df.groupby(["topic", "sentiment"])
-        .size()
-        .unstack(fill_value=0)
-        .reset_index()
-    )
+def topic_sentiment_score_chart(df):
+    # On crée un binning du score pour l'affichage
+    df['score_bin'] = df['sentiment_score'].clip(-5,5)  # -5 à 5
 
-    if "NEGATIVE" not in agg.columns:
-        agg["NEGATIVE"] = 0
-    if "POSITIVE" not in agg.columns:
-        agg["POSITIVE"] = 0
-
-    agg["NEGATIVE"] = -agg["NEGATIVE"]
-
-    fig = go.Figure()
-    fig.add_bar(
-        y=agg["topic"],
-        x=agg["NEGATIVE"],
-        orientation="h",
-        name="Negative",
-        marker_color="tomato"
-    )
-    fig.add_bar(
-        y=agg["topic"],
-        x=agg["POSITIVE"],
-        orientation="h",
-        name="Positive",
-        marker_color="mediumseagreen"
+    # Chaque topic aura plusieurs bars horizontales
+    fig = px.histogram(
+        df,
+        x='sentiment_score',
+        y='topic',
+        color='sentiment',
+        nbins=11,  # -5 à 5
+        orientation='h',
+        histfunc='count',
+        barmode='overlay',  # On peut changer en 'group' pour côté à côté
+        color_discrete_map={"POSITIVE":"mediumseagreen", "NEGATIVE":"tomato"}
     )
 
     fig.update_layout(
-        barmode="relative",
-        xaxis_title="Number of reviews",
-        yaxis_title="Topics",
-        xaxis=dict(zeroline=True, zerolinewidth=2),
+        xaxis=dict(title="Sentiment Score", range=[-5,5], zeroline=True, zerolinewidth=2),
+        yaxis=dict(title="Topics"),
         height=500
     )
-
     return fig
 
 # -----------------------------
@@ -99,7 +81,7 @@ if selected_store == "All Stores":
     col3.metric("Stores Covered", len(stores))
 
     st.subheader("📊 Topic Sentiment — Network")
-    fig = topic_sentiment_diverging(topics_df)
+    fig = topic_sentiment_score_chart(topics_df)
     st.plotly_chart(fig, use_container_width=True)
 
     st.subheader("🧩 Key Business Insights")
@@ -123,7 +105,7 @@ else:
     col3.metric("Delta vs Network", f"{delta_vs_network*100:+.1f}%")
 
     st.subheader("📊 Topic Sentiment — Store")
-    fig = topic_sentiment_diverging(store_topics_df)
+    fig = topic_sentiment_score_chart(store_topics_df)
     st.plotly_chart(fig, use_container_width=True)
 
 st.caption("📌 Data collected weekly via Google Maps • Analysis automated with GitHub Actions • Dashboard hosted on Streamlit Cloud")
