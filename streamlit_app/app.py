@@ -59,7 +59,7 @@ if not display_df.empty:
     st.subheader("📊 Graphique des Sentiments")
     
     # On agrège par topic/sentiment pour le graphe pour éviter les doublons visuels
-    chart_data = display_df.groupby(['topic', 'sentiment'], as_index=False)['count'].sum()
+    chart_data = display_df.groupby(['topic', 'sentiment'], as_index=False)['count'].avg()
     
     fig = px.bar(
         chart_data,
