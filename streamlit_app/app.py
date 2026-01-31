@@ -79,26 +79,26 @@ def plot_diverging_topic_chart(df, title):
         marker_color="#22c55e",
     )
 
-max_value = max(
-    topic_sentiment["POSITIVE"].max(),
-    abs(topic_sentiment["NEGATIVE"].min())
-)
-
-fig.update_layout(
-    title=title,
-    barmode="relative",
-    xaxis=dict(
-        title="Number of reviews",
-        range=[-max_value, max_value],
-        zeroline=True,
-        zerolinewidth=2,
-        zerolinecolor="black",
-        ticks="outside"
-    ),
-    yaxis=dict(title="Topic"),
-    legend=dict(orientation="h", y=-0.25),
-    height=500,
-)
+    max_value = max(
+        topic_sentiment["POSITIVE"].max(),
+        abs(topic_sentiment["NEGATIVE"].min())
+    )
+    
+    fig.update_layout(
+        title=title,
+        barmode="relative",
+        xaxis=dict(
+            title="Number of reviews",
+            range=[-max_value, max_value],
+            zeroline=True,
+            zerolinewidth=2,
+            zerolinecolor="black",
+            ticks="outside"
+        ),
+        yaxis=dict(title="Topic"),
+        legend=dict(orientation="h", y=-0.25),
+        height=500,
+    )
 
 
     st.plotly_chart(fig, use_container_width=True)
