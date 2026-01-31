@@ -7,8 +7,10 @@ from pathlib import Path
 # Configuration
 # -----------------------------
 st.set_page_config(page_title="Lululemon AI Insights", layout="wide")
-st.title("🧠 Lululemon AI Business Insights")
 
+# -----------------------------
+# Chargement des données (Source de vérité)
+# -----------------------------
 DATA_DIR = Path("data/processed")
 INSIGHTS_PATH = DATA_DIR / "business_insights.csv"
 
@@ -16,40 +18,51 @@ INSIGHTS_PATH = DATA_DIR / "business_insights.csv"
 def load_data():
     df = pd.read_csv(INSIGHTS_PATH)
     df.columns = df.columns.str.strip()
+    # On s'assure que count est un entier
     df['count'] = pd.to_numeric(df['count'], errors='coerce').fillna(0).astype(int)
     return df
 
 df_source = load_data()
 
 # -----------------------------
-# Sidebar
+# Sidebar - Le déclencheur du "Refresh"
 # -----------------------------
+st.sidebar.header("Filtres")
 stores = sorted(df_source["store_name"].unique())
-selected_store = st.sidebar.selectbox("Choisir un magasin", ["Tous les magasins"] + stores)
+selected_store = st.sidebar.selectbox(
+    "Choisir un magasin", 
+    ["Tous les magasins"] + stores,
+    key="store_selector" # Une clé unique force parfois Streamlit à mieux suivre l'état
+)
 
 # -----------------------------
-# Préparation des données & colonnes à afficher
+# Logique de Filtrage (S'exécute à chaque changement)
 # -----------------------------
 if selected_store == "Tous les magasins":
     display_df = df_source.copy()
-    # On garde toutes les colonnes pour la vue globale
     cols_to_show = ["store_name", "topic", "sentiment", "count"]
-    chart_title = "Analyse Globale - Tous les magasins"
+    title_prefix = "Vue Globale"
 else:
-    # On filtre sur le magasin
+    # On filtre strictement sur le magasin
     display_df = df_source[df_source["store_name"] == selected_store].copy()
-    # On enlève 'store_name' car il est déjà dans le titre
+    # On enlève la colonne store_name comme demandé
     cols_to_show = ["topic", "sentiment", "count"]
-    chart_title = f"Analyse : {selected_store}"
+    title_prefix = f"Analyse : {selected_store}"
 
 # -----------------------------
-# GRAPHIQUE (Source directe)
+# Affichage Principal
 # -----------------------------
-st.subheader(f"📊 {chart_title}")
+st.title(f"🧠 {title_prefix}")
 
 if not display_df.empty:
+    # 1. Graphique
+    st.subheader("📊 Graphique des Sentiments")
+    
+    # On agrège par topic/sentiment pour le graphe pour éviter les doublons visuels
+    chart_data = display_df.groupby(['topic', 'sentiment'], as_index=False)['count'].sum()
+    
     fig = px.bar(
-        display_df,
+        chart_data,
         x='count',
         y='topic',
         color='sentiment',
@@ -57,39 +70,36 @@ if not display_df.empty:
         barmode='stack',
         color_discrete_map={'POSITIVE': '#00CC96', 'NEGATIVE': '#EF553B'},
         text='count',
-        labels={'count': "Nombre d'avis", 'topic': "Sujet"}
+        labels={'count': "Nombre d'avis", 'topic': "Thématique"}
     )
 
     fig.update_layout(
         xaxis=dict(tickformat='d', dtick=1),
         yaxis={'categoryorder':'total ascending'},
-        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
+        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
+        height=400
     )
 
     st.plotly_chart(fig, use_container_width=True)
+
+    # 2. Tableau (Strictement identique au graphe)
+    st.subheader("📋 Tableau de données")
+    # hide_index=True enlève la colonne 0,1,2...
+    st.dataframe(
+        display_df[cols_to_show], 
+        use_container_width=True, 
+        hide_index=True
+    )
+
+    # 3. Métriques
+    st.divider()
+    c1, c2, c3 = st.columns(3)
+    total_count = display_df['count'].sum()
+    pos_count = display_df[display_df['sentiment'] == 'POSITIVE']['count'].sum()
+    
+    c1.metric("Total Avis", total_count)
+    c2.metric("Satisfaction", f"{(pos_count/total_count*100):.1f}%" if total_count > 0 else "0%")
+    c3.metric("Lignes affichées", len(display_df))
+
 else:
-    st.warning("Aucune donnée disponible.")
-
-# -----------------------------
-# DATAFRAME (SANS INDEX et SANS STORE_NAME si filtré)
-# -----------------------------
-st.subheader("📋 Récapitulatif des données")
-
-# Affichage avec les colonnes dynamiques
-st.dataframe(
-    display_df[cols_to_show], 
-    use_container_width=True, 
-    hide_index=True
-)
-
-# -----------------------------
-# KPIs
-# -----------------------------
-st.divider()
-total_v = display_df["count"].sum()
-pos_v = display_df[display_df["sentiment"] == "POSITIVE"]["count"].sum()
-taux = (pos_v / total_v * 100) if total_v > 0 else 0
-
-c1, c2 = st.columns(2)
-c1.metric("Total Avis", int(total_v))
-c2.metric("Satisfaction", f"{taux:.1f}%")
+    st.error("Aucune donnée trouvée pour cette sélection.")
