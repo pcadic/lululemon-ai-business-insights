@@ -135,11 +135,11 @@ else:
     col2.metric("Positive Sentiment", f"{store_positive_rate*100:.1f}%")
     col3.metric("Delta vs Network", f"{delta_vs_network*100:+.1f}%")
 
-    st.subheader("🗂️ Topic Distribution — {selected_store}")
+    st.subheader("🗂️ Topic Distribution")
     fig = topic_sentiment_chart(topics_df, store_name=selected_store)
     st.plotly_chart(fig, use_container_width=True)
 
-    st.subheader("🧩 Key Business Insights — Store")
+    st.subheader("🧩 Key Business Insights")
     st.dataframe(insights_df[insights_df['store_name'] == selected_store], use_container_width=True)
 
 # -----------------------------
