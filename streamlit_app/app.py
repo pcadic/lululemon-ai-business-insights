@@ -1,6 +1,6 @@
 import streamlit as st
 import pandas as pd
-import plotly.express as px
+import plotly.graph_objects as go
 from pathlib import Path
 
 st.set_page_config(page_title="Lululemon AI Insights", layout="wide")
@@ -44,30 +44,55 @@ network_positive_rate = (sentiment_df["sentiment"] == "POSITIVE").mean()
 network_review_count = len(sentiment_df)
 
 # -----------------------------
-# Helper: Sentiment Score Bar Chart
+# Helper: Diverging Topic Sentiment Chart
 # -----------------------------
-def topic_sentiment_score_chart(df):
-    # On crée un binning du score pour l'affichage
-    df['score_bin'] = df['sentiment_score'].clip(-5,5)  # -5 à 5
+def topic_sentiment_diverging(df, height=500):
+    """
+    Crée un graphique horizontal divergeant : 
+    avis négatifs à gauche, positifs à droite
+    """
+    # On compte les avis positifs et négatifs par topic
+    counts = df.groupby(['topic', 'sentiment']).size().unstack(fill_value=0)
+    
+    # S'assurer que les colonnes existent
+    counts['NEGATIVE'] = -counts.get('NEGATIVE', 0)  # Négatif à gauche
+    counts['POSITIVE'] = counts.get('POSITIVE', 0)
 
-    # Chaque topic aura plusieurs bars horizontales
-    fig = px.histogram(
-        df,
-        x='sentiment_score',
-        y='topic',
-        color='sentiment',
-        nbins=11,  # -5 à 5
+    counts = counts.reset_index()
+
+    fig = go.Figure()
+
+    fig.add_trace(go.Bar(
+        y=counts['topic'],
+        x=counts['NEGATIVE'],
         orientation='h',
-        histfunc='count',
-        barmode='overlay',  # On peut changer en 'group' pour côté à côté
-        color_discrete_map={"POSITIVE":"mediumseagreen", "NEGATIVE":"tomato"}
-    )
+        name='Negative',
+        marker_color='tomato',
+        hovertemplate="Topic: %{y}<br>Negative Reviews: %{customdata}<extra></extra>",
+        customdata=-counts['NEGATIVE']  # valeur positive pour le hover
+    ))
+
+    fig.add_trace(go.Bar(
+        y=counts['topic'],
+        x=counts['POSITIVE'],
+        orientation='h',
+        name='Positive',
+        marker_color='mediumseagreen',
+        hovertemplate="Topic: %{y}<br>Positive Reviews: %{x}<extra></extra>"
+    ))
 
     fig.update_layout(
-        xaxis=dict(title="Sentiment Score", range=[-5,5], zeroline=True, zerolinewidth=2),
-        yaxis=dict(title="Topics"),
-        height=500
+        barmode='relative',
+        height=height,
+        yaxis_autorange='reversed',  # topics du plus important en haut
+        xaxis=dict(title="Number of Reviews", zeroline=True),
+        bargap=0.05,
+        legend_orientation='h',
+        legend_x=-0.05,
+        legend_y=1.1,
+        title="Topic Sentiment Diverging Chart"
     )
+
     return fig
 
 # -----------------------------
@@ -81,7 +106,7 @@ if selected_store == "All Stores":
     col3.metric("Stores Covered", len(stores))
 
     st.subheader("📊 Topic Sentiment — Network")
-    fig = topic_sentiment_score_chart(topics_df)
+    fig = topic_sentiment_diverging(topics_df)
     st.plotly_chart(fig, use_container_width=True)
 
     st.subheader("🧩 Key Business Insights")
@@ -93,8 +118,8 @@ if selected_store == "All Stores":
 else:
     st.header(f"🏬 Store Analysis — {selected_store}")
 
-    store_sentiment_df = sentiment_df[sentiment_df["store_name"] == selected_store]
     store_topics_df = topics_df[topics_df["store_name"] == selected_store]
+    store_sentiment_df = sentiment_df[sentiment_df["store_name"] == selected_store]
 
     store_positive_rate = (store_sentiment_df["sentiment"] == "POSITIVE").mean()
     delta_vs_network = store_positive_rate - network_positive_rate
@@ -105,7 +130,7 @@ else:
     col3.metric("Delta vs Network", f"{delta_vs_network*100:+.1f}%")
 
     st.subheader("📊 Topic Sentiment — Store")
-    fig = topic_sentiment_score_chart(store_topics_df)
+    fig = topic_sentiment_diverging(store_topics_df)
     st.plotly_chart(fig, use_container_width=True)
 
 st.caption("📌 Data collected weekly via Google Maps • Analysis automated with GitHub Actions • Dashboard hosted on Streamlit Cloud")
