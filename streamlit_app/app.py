@@ -3,6 +3,9 @@ import pandas as pd
 import plotly.graph_objects as go
 from pathlib import Path
 
+# -----------------------------
+# Streamlit config
+# -----------------------------
 st.set_page_config(page_title="Lululemon AI Insights", layout="wide")
 st.title("🧠 Lululemon AI Business Insights")
 st.caption("Retail sentiment & topic analysis powered by Google Maps reviews")
@@ -44,55 +47,56 @@ network_positive_rate = (sentiment_df["sentiment"] == "POSITIVE").mean()
 network_review_count = len(sentiment_df)
 
 # -----------------------------
-# Helper: Diverging Topic Sentiment Chart
+# Helper function for topic sentiment chart
 # -----------------------------
-def topic_sentiment_diverging(df, height=500):
-    """
-    Crée un graphique horizontal divergeant : 
-    avis négatifs à gauche, positifs à droite
-    """
-    # On compte les avis positifs et négatifs par topic
-    counts = df.groupby(['topic', 'sentiment']).size().unstack(fill_value=0)
+def topic_sentiment_chart(df_topics, df_sentiment, store_name=None):
+    if store_name and store_name != "All Stores":
+        df = df_topics[df_topics["store_name"] == store_name].copy()
+    else:
+        df = df_topics.copy()
     
-    # S'assurer que les colonnes existent
-    counts['NEGATIVE'] = -counts.get('NEGATIVE', 0)  # Négatif à gauche
-    counts['POSITIVE'] = counts.get('POSITIVE', 0)
-
-    counts = counts.reset_index()
-
+    # Calcul des scores positifs et négatifs par topic
+    grouped = df.groupby("topic")["sentiment_score"].apply(list).reset_index()
+    
     fig = go.Figure()
+    
+    for _, row in grouped.iterrows():
+        topic = row["topic"]
+        scores = row["sentiment_score"]
+        neg_scores = [s for s in scores if s < 0]
+        pos_scores = [s for s in scores if s > 0]
 
-    fig.add_trace(go.Bar(
-        y=counts['topic'],
-        x=counts['NEGATIVE'],
-        orientation='h',
-        name='Negative',
-        marker_color='tomato',
-        hovertemplate="Topic: %{y}<br>Negative Reviews: %{customdata}<extra></extra>",
-        customdata=-counts['NEGATIVE']  # valeur positive pour le hover
-    ))
-
-    fig.add_trace(go.Bar(
-        y=counts['topic'],
-        x=counts['POSITIVE'],
-        orientation='h',
-        name='Positive',
-        marker_color='mediumseagreen',
-        hovertemplate="Topic: %{y}<br>Positive Reviews: %{x}<extra></extra>"
-    ))
+        # Somme des scores négatifs pour barre gauche
+        fig.add_trace(go.Bar(
+            y=[topic],
+            x=[sum(neg_scores)],
+            orientation='h',
+            name='Negative',
+            marker_color='tomato',
+            hovertemplate=f"Topic: {topic}<br>Negative Sum: %{x}<extra></extra>"
+        ))
+        
+        # Somme des scores positifs pour barre droite
+        fig.add_trace(go.Bar(
+            y=[topic],
+            x=[sum(pos_scores)],
+            orientation='h',
+            name='Positive',
+            marker_color='mediumseagreen',
+            hovertemplate=f"Topic: {topic}<br>Positive Sum: %{x}<extra></extra>"
+        ))
 
     fig.update_layout(
         barmode='relative',
-        height=height,
-        yaxis_autorange='reversed',  # topics du plus important en haut
-        xaxis=dict(title="Number of Reviews", zeroline=True),
-        bargap=0.05,
-        legend_orientation='h',
-        legend_x=-0.05,
-        legend_y=1.1,
-        title="Topic Sentiment Diverging Chart"
+        title="Topic Sentiment Diverging Chart",
+        xaxis_title="Cumulative Sentiment Score (-ve left, +ve right)",
+        yaxis_title="Topics",
+        yaxis={'autorange':'reversed'},
+        height=500 + 30*len(grouped),
+        bargap=0.15,
+        legend=dict(orientation='h', x=0, y=1.1)
     )
-
+    
     return fig
 
 # -----------------------------
@@ -100,15 +104,16 @@ def topic_sentiment_diverging(df, height=500):
 # -----------------------------
 if selected_store == "All Stores":
     st.header("🌍 Network Overview")
+    
     col1, col2, col3 = st.columns(3)
     col1.metric("Total Reviews", network_review_count)
     col2.metric("Positive Sentiment Rate", f"{network_positive_rate*100:.1f}%")
     col3.metric("Stores Covered", len(stores))
-
-    st.subheader("📊 Topic Sentiment — Network")
-    fig = topic_sentiment_diverging(topics_df)
+    
+    st.subheader("📊 Topics Across Network")
+    fig = topic_sentiment_chart(topics_df, sentiment_df)
     st.plotly_chart(fig, use_container_width=True)
-
+    
     st.subheader("🧩 Key Business Insights")
     st.dataframe(insights_df, use_container_width=True)
 
@@ -117,20 +122,27 @@ if selected_store == "All Stores":
 # -----------------------------
 else:
     st.header(f"🏬 Store Analysis — {selected_store}")
-
+    
+    store_df = sentiment_df[sentiment_df["store_name"] == selected_store]
     store_topics_df = topics_df[topics_df["store_name"] == selected_store]
-    store_sentiment_df = sentiment_df[sentiment_df["store_name"] == selected_store]
-
-    store_positive_rate = (store_sentiment_df["sentiment"] == "POSITIVE").mean()
+    
+    store_positive_rate = (store_df["sentiment"] == "POSITIVE").mean()
     delta_vs_network = store_positive_rate - network_positive_rate
-
+    
     col1, col2, col3 = st.columns(3)
-    col1.metric("Store Reviews", len(store_sentiment_df))
+    col1.metric("Store Reviews", len(store_df))
     col2.metric("Positive Sentiment", f"{store_positive_rate*100:.1f}%")
     col3.metric("Delta vs Network", f"{delta_vs_network*100:+.1f}%")
-
-    st.subheader("📊 Topic Sentiment — Store")
-    fig = topic_sentiment_diverging(store_topics_df)
+    
+    st.subheader("🗂️ Topic Distribution — Store")
+    fig = topic_sentiment_chart(store_topics_df, store_df, store_name=selected_store)
     st.plotly_chart(fig, use_container_width=True)
 
-st.caption("📌 Data collected weekly via Google Maps • Analysis automated with GitHub Actions • Dashboard hosted on Streamlit Cloud")
+# -----------------------------
+# Footer
+# -----------------------------
+st.caption(
+    "📌 Data collected weekly via Google Maps • "
+    "Analysis automated with GitHub Actions • "
+    "Dashboard hosted on Streamlit Cloud"
+)
