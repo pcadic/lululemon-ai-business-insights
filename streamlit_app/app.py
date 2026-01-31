@@ -140,7 +140,7 @@ else:
     st.plotly_chart(fig, use_container_width=True)
 
     st.subheader("🧩 Key Business Insights — Store")
-    st.dataframe(insights_df, use_container_width=True)
+    st.dataframe(insights_df[insights_df['store_name'] == selected_store], use_container_width=True)
 
 # -----------------------------
 # Footer
