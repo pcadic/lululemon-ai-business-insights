@@ -66,25 +66,26 @@ def topic_sentiment_chart(df_topics, df_sentiment, store_name=None):
         neg_scores = [s for s in scores if s < 0]
         pos_scores = [s for s in scores if s > 0]
 
-        # Somme des scores négatifs pour barre gauche
+        # Barre négative
         fig.add_trace(go.Bar(
             y=[topic],
             x=[sum(neg_scores)],
             orientation='h',
             name='Negative',
             marker_color='tomato',
-            hovertemplate=f"Topic: {topic}<br>Negative Sum: %{x}<extra></extra>"
+            hovertemplate=f"Topic: {topic}<br>Negative Sum: %{{x}}<extra></extra>"
         ))
         
-        # Somme des scores positifs pour barre droite
+        # Barre positive
         fig.add_trace(go.Bar(
             y=[topic],
             x=[sum(pos_scores)],
             orientation='h',
             name='Positive',
             marker_color='mediumseagreen',
-            hovertemplate=f"Topic: {topic}<br>Positive Sum: %{x}<extra></extra>"
+            hovertemplate=f"Topic: {topic}<br>Positive Sum: %{{x}}<extra></extra>"
         ))
+
 
     fig.update_layout(
         barmode='relative',
