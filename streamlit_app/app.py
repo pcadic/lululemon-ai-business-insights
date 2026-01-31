@@ -4,131 +4,156 @@ import plotly.graph_objects as go
 from pathlib import Path
 
 # -----------------------------
-# Configuration
+# Configuration Streamlit
 # -----------------------------
 st.set_page_config(page_title="Lululemon AI Insights", layout="wide")
 st.title("🧠 Lululemon AI Business Insights")
-st.caption("Analyse des sentiments et thématiques basée sur les avis Google Maps")
+st.caption("Analyse des sentiments & thématiques via Google Maps (Données agrégées)")
 
 # -----------------------------
-# Chargement des données
+# Constantes / Chemins (Paths)
+# -----------------------------
+DATA_DIR = Path("data/processed")
+SENTIMENT_PATH = DATA_DIR / "sentiment_enriched.csv"
+TOPIC_PATH = DATA_DIR / "topic_enriched.csv"
+INSIGHTS_PATH = DATA_DIR / "business_insights.csv"
+
+# -----------------------------
+# Chargement des données (CORRIGÉ)
 # -----------------------------
 @st.cache_data
 def load_data():
-    # J'utilise test.csv comme source unique ici selon votre exemple
-    df = pd.read_csv("test.csv")
-    # S'assurer que les noms de colonnes sont propres
-    df.columns = [c.strip() for c in df.columns]
-    return df
+    # On charge les fichiers CSV
+    sentiment = pd.read_csv(SENTIMENT_PATH)
+    topics = pd.read_csv(TOPIC_PATH)
+    insights = pd.read_csv(INSIGHTS_PATH)
+    
+    # Nettoyage rapide des colonnes au cas où
+    for df in [sentiment, topics, insights]:
+        df.columns = [c.strip() for c in df.columns]
+        
+    return sentiment, topics, insights
 
 try:
-    df_main = load_data()
+    sentiment_df, topics_df, insights_df = load_data()
 except FileNotFoundError:
-    st.error("Le fichier test.csv est introuvable.")
+    st.error(f"Fichiers CSV introuvables dans {DATA_DIR}. Vérifiez les chemins.")
     st.stop()
 
 # -----------------------------
-# Sidebar
+# Logique de calcul Global (KPIs Réseau)
 # -----------------------------
-stores = sorted(df_main["store_name"].unique())
-selected_store = st.sidebar.selectbox("Sélectionner un magasin", ["Tous les magasins"] + stores)
-
-# Filtrage des données
-if selected_store == "Tous les magasins":
-    df_filtered = df_main.copy()
-else:
-    df_filtered = df_main[df_main["store_name"] == selected_store]
-
-# -----------------------------
-# Calcul des KPIs (CORRIGÉ)
-# -----------------------------
-# On utilise la somme de la colonne 'count' et non le nombre de lignes
-total_reviews = df_filtered["count"].sum()
-positive_reviews = df_filtered[df_filtered["sentiment"] == "POSITIVE"]["count"].sum()
-negative_reviews = df_filtered[df_filtered["sentiment"] == "NEGATIVE"]["count"].sum()
-
-# Taux de sentiment positif global (pour le benchmark)
-network_total = df_main["count"].sum()
-network_positive = df_main[df_main["sentiment"] == "POSITIVE"]["count"].sum()
-network_rate = network_positive / network_total if network_total > 0 else 0
-
-current_rate = positive_reviews / total_reviews if total_reviews > 0 else 0
-delta = current_rate - network_rate
+# IMPORTANT : On utilise .sum() sur la colonne 'count'
+network_total_reviews = sentiment_df["count"].sum()
+network_pos_reviews = sentiment_df[sentiment_df["sentiment"] == "POSITIVE"]["count"].sum()
+network_positive_rate = network_pos_reviews / network_total_reviews if network_total_reviews > 0 else 0
 
 # -----------------------------
 # Fonction de graphique divergent (CORRIGÉE)
 # -----------------------------
-def topic_sentiment_chart(df):
-    # Pivot en faisant la SOMME de la colonne 'count'
-    pivot = df.pivot_table(
+def topic_sentiment_chart(df, store_name=None):
+    working_df = df.copy()
+    
+    if store_name and store_name != "All Stores":
+        working_df = working_df[working_df['store_name'] == store_name]
+    
+    # Pivot en faisant la SOMME de 'count'
+    pivot = working_df.pivot_table(
         index='topic',
         columns='sentiment',
         values='count',
         aggfunc='sum',
         fill_value=0
     ).reset_index()
-
-    # S'assurer que les colonnes existent pour éviter les erreurs
+    
+    # Sécurité si une colonne de sentiment manque
     if 'NEGATIVE' not in pivot.columns: pivot['NEGATIVE'] = 0
     if 'POSITIVE' not in pivot.columns: pivot['POSITIVE'] = 0
-
-    # Inversion des valeurs négatives pour l'affichage à gauche
-    pivot['NEGATIVE_PLOT'] = -pivot['NEGATIVE']
-
-    # Tri par volume total pour un meilleur rendu
-    pivot['total'] = pivot['POSITIVE'] + pivot['NEGATIVE']
-    pivot = pivot.sort_values('total', ascending=True)
-
+    
+    # Pour le graphique divergent : les négatifs partent vers la gauche (valeurs négatives)
+    pivot['NEG_VAL'] = -pivot['NEGATIVE']
+    
+    # Tri par volume total pour la lisibilité
+    pivot['total_vol'] = pivot['POSITIVE'] + pivot['NEGATIVE']
+    pivot = pivot.sort_values('total_vol', ascending=True)
+    
     fig = go.Figure()
     
-    # Barre Négative (Rouge)
+    # Barre Négative
     fig.add_trace(go.Bar(
         y=pivot['topic'],
-        x=pivot['NEGATIVE_PLOT'],
+        x=pivot['NEG_VAL'],
         name='Négatif',
         orientation='h',
         marker_color='#EF553B',
         customdata=pivot['NEGATIVE'],
-        hovertemplate="Sujet: %{y}<br>Avis négatifs: %{customdata}<extra></extra>"
+        hovertemplate="Topic: %{y}<br>Négatifs: %{customdata}<extra></extra>"
     ))
     
-    # Barre Positive (Vert)
+    # Barre Positive
     fig.add_trace(go.Bar(
         y=pivot['topic'],
         x=pivot['POSITIVE'],
         name='Positif',
         orientation='h',
         marker_color='#00CC96',
-        hovertemplate="Sujet: %{y}<br>Avis positifs: %{x}<extra></extra>"
+        hovertemplate="Topic: %{y}<br>Positifs: %{x}<extra></extra>"
     ))
-
+    
     fig.update_layout(
         barmode='relative',
-        xaxis=dict(title="Nombre d'avis", zeroline=True, zerolinewidth=2, zerolinecolor='Black'),
-        yaxis=dict(title="Thématiques"),
-        height=400,
-        margin=dict(l=20, r=20, t=40, b=20),
+        xaxis=dict(title="Volume d'avis (Somme)", zeroline=True, zerolinewidth=2),
+        yaxis=dict(title="Sujets évoqués"),
+        height=400 + (25 * len(pivot)),
         legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
     )
     return fig
 
 # -----------------------------
-# Affichage
+# Sidebar
 # -----------------------------
-st.header(f"📊 Analyse : {selected_store}")
+stores = sorted(sentiment_df["store_name"].unique())
+selected_store = st.sidebar.selectbox("Select store", ["All Stores"] + stores)
 
-col1, col2, col3 = st.columns(3)
-col1.metric("Total Avis", int(total_reviews))
-col2.metric("Taux Positif", f"{current_rate*100:.1f}%")
-col3.metric("Delta vs Réseau", f"{delta*100:+.1f}%")
+# -----------------------------
+# Affichage : Vue Réseau ou Magasin
+# -----------------------------
+if selected_store == "All Stores":
+    st.header("🌍 Network Overview")
+    
+    col1, col2, col3 = st.columns(3)
+    col1.metric("Total Reviews (Sum)", int(network_total_reviews))
+    col2.metric("Positive Rate", f"{network_positive_rate*100:.1f}%")
+    col3.metric("Stores Covered", len(stores))
 
-st.subheader("🗂️ Répartition des sentiments par thématique")
-if total_reviews > 0:
-    fig = topic_sentiment_chart(df_filtered)
-    st.plotly_chart(fig, use_container_width=True)
+    st.subheader("📊 Topics Across Network")
+    st.plotly_chart(topic_sentiment_chart(topics_df), use_container_width=True)
+
+    st.subheader("🧩 Key Business Insights")
+    st.dataframe(insights_df, use_container_width=True)
+
 else:
-    st.warning("Aucune donnée disponible pour ce filtre.")
+    st.header(f"🏬 Store Analysis — {selected_store}")
+    
+    # Filtrage
+    store_sent_df = sentiment_df[sentiment_df["store_name"] == selected_store]
+    
+    # KPIs magasin corrigés
+    store_total = store_sent_df["count"].sum()
+    store_pos = store_sent_df[store_sent_df["sentiment"] == "POSITIVE"]["count"].sum()
+    store_rate = store_pos / store_total if store_total > 0 else 0
+    delta = store_rate - network_positive_rate
 
-# Pied de page
+    col1, col2, col3 = st.columns(3)
+    col1.metric("Store Reviews", int(store_total))
+    col2.metric("Positive Sentiment", f"{store_rate*100:.1f}%")
+    col3.metric("Delta vs Network", f"{delta*100:+.1f}%")
+
+    st.subheader("🗂️ Topic Distribution")
+    st.plotly_chart(topic_sentiment_chart(topics_df, store_name=selected_store), use_container_width=True)
+
+    st.subheader("🧩 Key Business Insights")
+    st.dataframe(insights_df[insights_df['store_name'] == selected_store], use_container_width=True)
+
 st.divider()
-st.caption("Données corrigées : prise en compte des volumes (colonne 'count').")
+st.caption("📌 Analyse basée sur les fréquences agrégées (colonne 'count').")
