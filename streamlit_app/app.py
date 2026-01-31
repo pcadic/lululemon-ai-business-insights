@@ -9,55 +9,41 @@ from pathlib import Path
 st.set_page_config(page_title="Lululemon AI Insights", layout="wide")
 st.title("🧠 Lululemon AI Business Insights")
 
-# Utilisation des chemins originaux
 DATA_DIR = Path("data/processed")
 INSIGHTS_PATH = DATA_DIR / "business_insights.csv"
 
 @st.cache_data
 def load_data():
-    # On se base uniquement sur le fichier que vous avez validé
     df = pd.read_csv(INSIGHTS_PATH)
     df.columns = df.columns.str.strip()
-    # On s'assure que count est bien un nombre entier
-    df['count'] = pd.to_numeric(df['count'], errors='coerce').fillna(0).astype(int)
+    # On s'assure que count est un nombre
+    df['count'] = pd.to_numeric(df['count'], errors='coerce').fillna(0)
     return df
 
-try:
-    df_insights = load_data()
-except Exception as e:
-    st.error(f"Erreur de chargement : {e}")
-    st.stop()
+df_insights = load_data()
 
 # -----------------------------
 # Sidebar
 # -----------------------------
 stores = sorted(df_insights["store_name"].unique())
-selected_store = st.sidebar.selectbox("Sélectionner un magasin", ["Tous les magasins"] + stores)
+selected_store = st.sidebar.selectbox("Choisir un magasin", ["Tous les magasins"] + stores)
 
+# Filtrage par magasin
 if selected_store == "Tous les magasins":
     display_df = df_insights
 else:
     display_df = df_insights[df_insights["store_name"] == selected_store]
 
 # -----------------------------
-# KPIs
+# Agrégation Spécifique (Somme par Topic et Sentiment)
 # -----------------------------
-total_v = display_df["count"].sum()
-pos_v = display_df[display_df["sentiment"] == "POSITIVE"]["count"].sum()
-sat_rate = (pos_v / total_v * 100) if total_v > 0 else 0
-
-c1, c2, c3 = st.columns(3)
-c1.metric("Total Avis", int(total_v))
-c2.metric("Taux Satisfaction", f"{sat_rate:.1f}%")
-c3.metric("Nb Thématiques", len(display_df['topic'].unique()))
-
-# -----------------------------
-# GRAPHIQUE : Stacked Bar (Empilé) avec Axe Entier
-# -----------------------------
-st.subheader(f"📊 Volume des avis par sujet : {selected_store}")
-
-# Agrégation
+# Cette étape garantit que POSITIF et NEGATIF restent des entités distinctes
 chart_data = display_df.groupby(['topic', 'sentiment'])['count'].sum().reset_index()
+
+# -----------------------------
+# Graphique Empilé (Stacked)
+# -----------------------------
+st.subheader(f"📊 Volume d'activité par sujet : {selected_store}")
 
 
 
@@ -67,28 +53,24 @@ fig = px.bar(
     y='topic',
     color='sentiment',
     orientation='h',
+    # barmode='stack' empêche l'annulation : ils s'empilent !
+    barmode='stack', 
     color_discrete_map={'POSITIVE': '#00CC96', 'NEGATIVE': '#EF553B'},
-    text_auto=True,
-    labels={'count': "Nombre d'avis", 'topic': "Sujet", 'sentiment': "Sentiment"}
+    text_auto='.0f', # Affiche les nombres entiers sur les segments
+    labels={'count': "Nombre total d'avis", 'topic': "Sujets analysés"}
 )
 
-# CORRECTION DE L'AXE (Forcer les nombres entiers)
 fig.update_layout(
-    barmode='stack',
-    xaxis=dict(
-        tickformat='d',      # 'd' force le formatage en nombres entiers (Digit)
-        dtick=1              # Force un cran tous les 1 avis
-    ),
+    xaxis=dict(tickformat='d', dtick=1), # Axe en nombres entiers (1, 2, 3...)
     yaxis={'categoryorder':'total ascending'},
-    legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
-    margin=dict(l=20, r=20, t=50, b=20)
+    legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
 )
 
 st.plotly_chart(fig, use_container_width=True)
 
 # -----------------------------
-# TABLEAU DE DÉTAIL
+# Table de vérification
 # -----------------------------
-st.subheader("📝 Détails des Insights")
-# On affiche les colonnes utiles pour l'utilisateur
-st.dataframe(display_df[['store_name', 'topic', 'sentiment', 'count']], use_container_width=True)
+with st.expander("🔍 Vérification des calculs (Sommes par sentiment)"):
+    st.write("Voici comment les données sont additionnées pour le graphique :")
+    st.dataframe(chart_data)
