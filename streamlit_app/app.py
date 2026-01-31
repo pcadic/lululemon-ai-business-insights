@@ -45,26 +45,19 @@ network_positive_rate = (sentiment_df["sentiment"] == "POSITIVE").mean()
 network_review_count = len(sentiment_df)
 
 # -----------------------------
-# Helper: Diverging topic sentiment chart
+# Helper: Diverging topic chart
 # -----------------------------
-def topic_sentiment_chart(topics, sentiment):
-    merged = topics.merge(
-        sentiment[["store_name", "text", "sentiment"]],
-        on=["store_name", "text"],
-        how="inner"
-    )
-
+def topic_sentiment_diverging(df):
     agg = (
-        merged
-        .groupby(["topic", "sentiment"])
+        df.groupby(["topic", "sentiment"])
         .size()
         .unstack(fill_value=0)
         .reset_index()
     )
 
-    if "NEGATIVE" not in agg:
+    if "NEGATIVE" not in agg.columns:
         agg["NEGATIVE"] = 0
-    if "POSITIVE" not in agg:
+    if "POSITIVE" not in agg.columns:
         agg["POSITIVE"] = 0
 
     agg["NEGATIVE"] = -agg["NEGATIVE"]
@@ -106,7 +99,7 @@ if selected_store == "All Stores":
     col3.metric("Stores Covered", len(stores))
 
     st.subheader("📊 Topic Sentiment — Network")
-    fig = topic_sentiment_chart(topics_df, sentiment_df)
+    fig = topic_sentiment_diverging(topics_df)
     st.plotly_chart(fig, use_container_width=True)
 
     st.subheader("🧩 Key Business Insights")
@@ -118,23 +111,19 @@ if selected_store == "All Stores":
 else:
     st.header(f"🏬 Store Analysis — {selected_store}")
 
-    store_sentiment = sentiment_df[sentiment_df["store_name"] == selected_store]
-    store_topics = topics_df[topics_df["store_name"] == selected_store]
+    store_sentiment_df = sentiment_df[sentiment_df["store_name"] == selected_store]
+    store_topics_df = topics_df[topics_df["store_name"] == selected_store]
 
-    store_positive_rate = (store_sentiment["sentiment"] == "POSITIVE").mean()
+    store_positive_rate = (store_sentiment_df["sentiment"] == "POSITIVE").mean()
     delta_vs_network = store_positive_rate - network_positive_rate
 
     col1, col2, col3 = st.columns(3)
-    col1.metric("Store Reviews", len(store_sentiment))
+    col1.metric("Store Reviews", len(store_sentiment_df))
     col2.metric("Positive Sentiment", f"{store_positive_rate*100:.1f}%")
     col3.metric("Delta vs Network", f"{delta_vs_network*100:+.1f}%")
 
-    st.subheader("🗂️ Topic Sentiment — Store")
-    fig = topic_sentiment_chart(store_topics, store_sentiment)
+    st.subheader("📊 Topic Sentiment — Store")
+    fig = topic_sentiment_diverging(store_topics_df)
     st.plotly_chart(fig, use_container_width=True)
 
-st.caption(
-    "📌 Data collected weekly via Google Maps • "
-    "Analysis automated with GitHub Actions • "
-    "Dashboard hosted on Streamlit Cloud"
-)
+st.caption("📌 Data collected weekly via Google Maps • Analysis automated with GitHub Actions • Dashboard hosted on Streamlit Cloud")
