@@ -4,125 +4,97 @@ import plotly.express as px
 from pathlib import Path
 
 # -----------------------------
-# 1. CONFIGURATION ET STYLE
+# Configuration
 # -----------------------------
 st.set_page_config(page_title="Lululemon AI Insights", layout="wide")
 
-# CSS pour épurer l'affichage si besoin
-st.markdown("""
-    <style>
-    .main { padding-top: 0rem; }
-    </style>
-    """, unsafe_allow_html=True)
-
-# -----------------------------
-# 2. CHARGEMENT DES DONNÉES
-# -----------------------------
+# Chemins des fichiers
 DATA_DIR = Path("data/processed")
 INSIGHTS_PATH = DATA_DIR / "business_insights.csv"
 
 @st.cache_data
 def load_data():
-    # Chargement du fichier que tu as validé
     df = pd.read_csv(INSIGHTS_PATH)
-    # Nettoyage des noms de colonnes (espaces invisibles)
     df.columns = df.columns.str.strip()
-    # Conversion forcée en entier pour la colonne count
+    # On garantit que 'count' est un entier pur
     df['count'] = pd.to_numeric(df['count'], errors='coerce').fillna(0).astype(int)
     return df
 
-try:
-    df_source = load_data()
-except Exception as e:
-    st.error(f"Erreur de lecture du fichier CSV : {e}")
-    st.stop()
+df_source = load_data()
 
 # -----------------------------
-# 3. BARRE LATÉRALE (FILTRES)
+# Sidebar & Filtrage
 # -----------------------------
-st.sidebar.header("Navigation")
 stores = sorted(df_source["store_name"].unique())
-selected_store = st.sidebar.selectbox(
-    "Choisir un magasin", 
-    ["Tous les magasins"] + stores,
-    key="store_selector"
-)
+selected_store = st.sidebar.selectbox("Choisir un magasin", ["Tous les magasins"] + stores)
 
-# -----------------------------
-# 4. LOGIQUE DE FILTRAGE
-# -----------------------------
 if selected_store == "Tous les magasins":
-    # Vue globale : on garde tout
     display_df = df_source.copy()
+    # On garde toutes les colonnes pour la vue globale
     cols_to_show = ["store_name", "topic", "sentiment", "count"]
-    chart_title = "Analyse Globale du Réseau"
 else:
-    # Vue spécifique : on filtre et on prépare les colonnes
+    # On filtre sur le magasin choisi
     display_df = df_source[df_source["store_name"] == selected_store].copy()
+    # On enlève 'store_name' du tableau final car il est en titre
     cols_to_show = ["topic", "sentiment", "count"]
-    chart_title = f"Analyse : {selected_store}"
 
 # -----------------------------
-# 5. PRÉPARATION DU GRAPHIQUE (CHART_DATA)
+# Préparation des données du graphique (L'étape clé)
 # -----------------------------
-# On crée chart_data pour être l'entrée exacte du graphique
+# On regroupe pour être certain que POSITIF et NÉGATIF ne s'annulent pas
+# et s'affichent bien comme des blocs distincts sur la même barre.
 chart_data = display_df.groupby(['topic', 'sentiment'], as_index=False)['count'].sum()
 
 # -----------------------------
-# 6. AFFICHAGE PRINCIPAL
+# Affichage
 # -----------------------------
-st.title(f"🧠 {chart_title}")
+st.title(f"📊 {selected_store}")
 
-# SECTION DEBUG : Pour vérifier que le code reçoit bien les bons chiffres
-with st.expander("🔍 Voir les données injectées dans le graphique (chart_data)", expanded=True):
-    st.write("Le graphique ci-dessous est construit strictement avec ces données :")
+# Bloc de vérification (Debug)
+with st.expander("🔍 Vérification : Données envoyées au graphique", expanded=True):
+    st.write("Le graphique ci-dessous utilise EXCLUSIVEMENT ces données :")
     st.dataframe(chart_data, hide_index=True, use_container_width=True)
 
-# SECTION GRAPHIQUE
 if not chart_data.empty:
-    # Création du bar chart empilé
+    # Création du graphique en barres empilées
     fig = px.bar(
         chart_data,
         x='count',
         y='topic',
         color='sentiment',
         orientation='h',
-        barmode='stack',
+        barmode='stack', # Empile les segments au lieu de les soustraire
         color_discrete_map={'POSITIVE': '#00CC96', 'NEGATIVE': '#EF553B'},
-        text='count',  # Affiche le chiffre sur la barre
-        labels={'count': "Nombre d'avis", 'topic': "Thématiques", 'sentiment': "Sentiment"},
-        hover_data={'topic': True, 'count': True, 'sentiment': True}
+        text='count',    # Affiche le chiffre exact à l'intérieur du segment
+        labels={'count': "Nombre d'avis", 'topic': "Thématiques", 'sentiment': "Sentiment"}
     )
 
-    # Forcer l'axe X en nombres entiers (0, 1, 2...)
+    # Réglages de l'axe et de la légende
     fig.update_layout(
-        xaxis=dict(tickformat='d', dtick=1),
+        xaxis=dict(
+            tickformat='d', # Force les nombres entiers (pas de 0.5, 1.0...)
+            dtick=1         # Une graduation pour chaque unité
+        ),
         yaxis={'categoryorder':'total ascending'},
         legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
-        margin=dict(l=20, r=20, t=50, b=20),
-        height=450
+        height=450,
+        margin=dict(l=20, r=20, t=50, b=20)
     )
 
     st.plotly_chart(fig, use_container_width=True)
-else:
-    st.warning("Aucune donnée disponible pour cette sélection.")
 
-# SECTION TABLEAU RÉCAPITULATIF
-st.subheader("📋 Récapitulatif détaillé")
-# Affiche display_df avec les colonnes choisies, sans l'index
-st.dataframe(
-    display_df[cols_to_show], 
-    use_container_width=True, 
-    hide_index=True
-)
+# Tableau récapitulatif final
+st.subheader("📋 Tableau récapitulatif détaillé")
+st.dataframe(display_df[cols_to_show], use_container_width=True, hide_index=True)
 
-# SECTION KPIs
+# -----------------------------
+# Métriques (KPIs)
+# -----------------------------
 st.divider()
-c1, c2, c3 = st.columns(3)
-total_reviews = display_df['count'].sum()
-pos_reviews = display_df[display_df['sentiment'] == 'POSITIVE']['count'].sum()
-sat_rate = (pos_reviews / total_reviews * 100) if total_reviews > 0 else 0
+total_v = display_df["count"].sum()
+pos_v = display_df[display_df["sentiment"] == "POSITIVE"]["count"].sum()
+taux = (pos_v / total_v * 100) if total_v > 0 else 0
 
-c1.metric("Total Avis", total_reviews)
-c2.metric("Taux Satisfaction", f"{sat_rate:.1f}%")
-c3.metric("Nb de Lignes", len(display_df))
+c1, c2 = st.columns(2)
+c1.metric("Total Avis cumulés", int(total_v))
+c2.metric("Taux de Satisfaction", f"{taux:.1f}%")
