@@ -93,13 +93,12 @@ if not display_df.empty:
 
     # 3. Métriques
     st.divider()
-    c1, c2, c3 = st.columns(3)
+    c1, c2 = st.columns(2)
     total_count = display_df['count'].sum()
     pos_count = display_df[display_df['sentiment'] == 'POSITIVE']['count'].sum()
     
     c1.metric("Total Avis", total_count)
     c2.metric("Satisfaction", f"{(pos_count/total_count*100):.1f}%" if total_count > 0 else "0%")
-    c3.metric("Lignes affichées", len(display_df))
-
+    
 else:
     st.error("Aucune donnée trouvée pour cette sélection.")
