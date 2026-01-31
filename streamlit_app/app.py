@@ -77,11 +77,11 @@ def topic_sentiment_chart(topics_df, store_name=None):
     fig = go.Figure()
     fig.add_trace(go.Bar(
         y=pivot['topic'],
-        x=pivot['NEGATIVE'],
+        x=-pivot['NEGATIVE'],
         name='Negative',
         orientation='h',
         marker_color='tomato',
-        customdata=pivot['NEGATIVE'],
+        customdata=-pivot['NEGATIVE'],
         hovertemplate="Topic: %{y}<br>Negative Reviews: %{customdata}<extra></extra>"
     ))
     fig.add_trace(go.Bar(
