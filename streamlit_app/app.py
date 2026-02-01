@@ -45,7 +45,7 @@ if selected_store == "Tous les magasins":
     st.subheader("Comparaison des performances par magasin")
     fig_global = px.bar(
         df, x="store_name", y="count", color="sentiment",
-        color_discrete_map={'POSITIVE': '#00CC96', 'NEGATIVE': '#EF553B'},
+        color_discrete_map={'POSITIVE': '#00CC96', 'NEGATIVE': '#CC0036', 'NEUTRAL': '#ffff1a'},
         barmode="group"
     )
     st.plotly_chart(fig_global, use_container_width=True)
@@ -65,8 +65,8 @@ else:
         fig_store = px.bar(
             store_df, y="topic", x="count", color="sentiment",
             orientation='h',
-            color_discrete_map={'POSITIVE': '#00CC96', 'NEGATIVE': '#EF553B'},
-            category_orders={"sentiment": ["NEGATIVE", "POSITIVE"]}
+            color_discrete_map={'POSITIVE': '#00CC96', 'NEGATIVE': '#CC0036', 'NEUTRAL': '#ffff1a'},
+            category_orders={"sentiment": ["NEGATIVE", "POSITIVE", "NEUTRAL"]}
         )
         st.plotly_chart(fig_store, use_container_width=True)
 
