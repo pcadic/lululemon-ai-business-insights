@@ -3,90 +3,72 @@ import pandas as pd
 import plotly.express as px
 from pathlib import Path
 
-# -----------------------------
-# Configuration
-# -----------------------------
-st.set_page_config(page_title="Lululemon AI Insights", layout="wide")
+# Config
+st.set_page_config(page_title="Google Maps Sentiment Analysis", layout="wide")
 
-DATA_DIR = Path("data/processed")
-INSIGHTS_PATH = DATA_DIR / "business_insights.csv"
+# Chargement sécurisé
+DATA_PATH = Path("data/processed/business_insights.csv")
 
 @st.cache_data
 def load_data():
-    df = pd.read_csv(INSIGHTS_PATH)
-    df.columns = df.columns.str.strip()
-    # On s'assure que count est bien un entier
-    df['count'] = pd.to_numeric(df['count'], errors='coerce').fillna(0).astype(int)
-    return df
+    if not DATA_PATH.exists():
+        return None
+    return pd.read_csv(DATA_PATH)
 
-df_source = load_data()
+df = load_data()
 
-# -----------------------------
-# Sidebar & Filtrage
-# -----------------------------
-stores = sorted(df_source["store_name"].unique())
+if df is None:
+    st.error("Fichier de données introuvable. Veuillez lancer le pipeline d'analyse d'abord.")
+    st.stop()
+
+# --- SIDEBAR ---
+st.sidebar.title("📊 Filtres")
+stores = sorted(df["store_name"].unique())
 selected_store = st.sidebar.selectbox("Choisir un magasin", ["Tous les magasins"] + stores)
 
+# --- HEADER ---
+st.title("🏬 Analyse des avis Google Maps")
+st.markdown(f"Analyse IA des thématiques et sentiments pour **{selected_store}**")
+
+# --- LOGIQUE D'AFFICHAGE ---
+
 if selected_store == "Tous les magasins":
-    display_df = df_source.copy()
-    cols_to_show = ["store_name", "topic", "sentiment", "count"]
-else:
-    display_df = df_source[df_source["store_name"] == selected_store].copy()
-    cols_to_show = ["topic", "sentiment", "count"]
+    # --- VUE GLOBALE ---
+    col1, col2, col3 = st.columns(3)
+    total_reviews = df["count"].sum()
+    pos_rate = (df[df["sentiment"] == "POSITIVE"]["count"].sum() / total_reviews) * 100
+    
+    col1.metric("Total Avis", total_reviews)
+    col2.metric("% Positif", f"{pos_rate:.1f}%")
+    col3.metric("Magasins analysés", len(stores))
 
-# -----------------------------
-# Préparation des données (L'étape de vérité)
-# -----------------------------
-# On agrège pour être certain de ce qu'on envoie au graphe
-chart_data = display_df.groupby(['topic', 'sentiment'], as_index=False)['count'].sum()
-
-# -----------------------------
-# Affichage
-# -----------------------------
-st.title(f"📊 {selected_store}")
-
-# Affichage du DataFrame de contrôle (ce que le graphe DOIT afficher)
-st.subheader("🛠️ Données d'entrée du graphique (Vérification)")
-st.dataframe(chart_data, hide_index=True, use_container_width=True)
-
-if not chart_data.empty:
-    # Création du graphique
-    # On utilise 'topic' pour l'axe Y et 'sentiment' pour la séparation des couleurs
-    fig = px.bar(
-        chart_data,
-        x='count',
-        y='topic',
-        color='sentiment',
-        orientation='h',
-        barmode='stack', # Empile POSITIVE et NEGATIVE sur la même ligne de topic
+    st.subheader("Comparaison des performances par magasin")
+    fig_global = px.bar(
+        df, x="store_name", y="count", color="sentiment",
         color_discrete_map={'POSITIVE': '#00CC96', 'NEGATIVE': '#EF553B'},
-        text='count',
-        category_orders={"sentiment": ["NEGATIVE", "POSITIVE"]}, # Garde le rouge à gauche, vert à droite
-        labels={'count': "Nombre d'avis", 'topic': "Thématique"}
+        barmode="group"
     )
+    st.plotly_chart(fig_global, use_container_width=True)
 
-    # Sécurité sur les axes
-    fig.update_layout(
-        xaxis=dict(tickformat='d', dtick=1), # Forcer les entiers
-        yaxis=dict(type='category', categoryorder='total ascending'), # Force le mode texte pour éviter les bugs d'échelle
-        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
-        height=400
-    )
+else:
+    # --- VUE PAR MAGASIN ---
+    store_df = df[df["store_name"] == selected_store]
+    
+    col1, col2 = st.columns([1, 2])
+    
+    with col1:
+        st.subheader("Récapitulatif")
+        st.dataframe(store_df.pivot_table(index="topic", columns="sentiment", values="count", fill_value=0))
 
-    st.plotly_chart(fig, use_container_width=True)
+    with col2:
+        st.subheader("Sentiments par thématique")
+        fig_store = px.bar(
+            store_df, y="topic", x="count", color="sentiment",
+            orientation='h',
+            color_discrete_map={'POSITIVE': '#00CC96', 'NEGATIVE': '#EF553B'},
+            category_orders={"sentiment": ["NEGATIVE", "POSITIVE"]}
+        )
+        st.plotly_chart(fig_store, use_container_width=True)
 
-# Tableau final épuré
-st.subheader("📋 Récapitulatif complet")
-st.dataframe(display_df[cols_to_show], use_container_width=True, hide_index=True)
-
-# -----------------------------
-# Métriques (KPIs)
-# -----------------------------
 st.divider()
-total_v = display_df["count"].sum()
-pos_v = display_df[display_df["sentiment"] == "POSITIVE"]["count"].sum()
-taux = (pos_v / total_v * 100) if total_v > 0 else 0
-
-c1, c2 = st.columns(2)
-c1.metric("Total Avis cumulés", int(total_v))
-c2.metric("Taux de Satisfaction", f"{taux:.1f}%")
+st.caption("Projet réalisé avec Hugging Face (BART & BERT) et Streamlit.")
