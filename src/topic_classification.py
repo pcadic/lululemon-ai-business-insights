@@ -5,6 +5,8 @@ import os
 INPUT = "data/processed/sentiment_enriched.csv"
 OUTPUT = "data/processed/topic_enriched.csv"
 
+os.environ["HF_TOKEN"] = "HF_TOKEN"
+
 TOPICS = [
     "Product quality",
     "Pricing",
