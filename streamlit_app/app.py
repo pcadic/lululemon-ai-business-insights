@@ -61,24 +61,24 @@ if selected_store == "Tous les magasins":
             barmode="group" # Les barres sont côte à côte par magasin
         )
     
-        # --- AJOUT DES SÉPARATEURS ---
-        fig_global.update_xaxes(
-            showgrid=True, 
-            gridwidth=2, 
-            gridcolor='rgba(128, 128, 128, 0.2)', # Couleur grise légère
-            ticks="outside", # Petit picot sous l'axe
-            tickson="boundaries", # Force le picot ET la ligne ENTRE les catégories
-            ticklen=10
-        )
+    # --- AJOUT DES SÉPARATEURS ---
+    fig_global.update_xaxes(
+        showgrid=True, 
+        gridwidth=2, 
+        gridcolor='rgba(128, 128, 128, 0.2)', # Couleur grise légère
+        ticks="outside", # Petit picot sous l'axe
+        tickson="boundaries", # Force le picot ET la ligne ENTRE les catégories
+        ticklen=10
+    )
     
-        fig_global.update_layout(
-            xaxis_title="",
-            legend_title="Sentiment",
-            # Optionnel : alternance de couleur de fond (bandes)
-            xaxis=dict(showspikes=True, spikethickness=1, spikedash='dot', spikecolor="#999999")
-        )
+    fig_global.update_layout(
+        xaxis_title="",
+        legend_title="Sentiment",
+        # Optionnel : alternance de couleur de fond (bandes)
+        xaxis=dict(showspikes=True, spikethickness=1, spikedash='dot', spikecolor="#999999")
+    )
     
-        st.plotly_chart(fig_global, use_container_width=True)
+    st.plotly_chart(fig_global, use_container_width=True)
 
 else:
     # --- VUE PAR MAGASIN ---
