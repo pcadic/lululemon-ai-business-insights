@@ -1,8 +1,8 @@
+streamlit
 pandas
-numpy
 plotly
-streamlit==1.26.0
-scikit-learn
-torch
+requests
 transformers
-altair<5
+torch
+torchvision
+torchaudio
