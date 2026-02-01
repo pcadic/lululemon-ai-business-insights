@@ -26,31 +26,31 @@ def load_data():
 df = load_data()
 
 if df is None:
-    st.error("Fichier de données introuvable. Veuillez lancer le pipeline d'analyse d'abord.")
+    st.error("Data file not found. Please run the analysis pipeline first.")
     st.stop()
 
 # --- SIDEBAR ---
 st.sidebar.title("📊 Filtres")
 stores = sorted(df["store_name"].unique())
-selected_store = st.sidebar.selectbox("Choisir un magasin", ["Tous les magasins"] + stores)
+selected_store = st.sidebar.selectbox("Select a store", ["All stores"] + stores)
 
 # --- HEADER ---
-st.title("🏬 Analyse des avis Google Maps")
-st.markdown(f"Analyse IA des thématiques et sentiments pour **{selected_store}**")
+st.title("🏬 Analysis of Google Maps reviews")
+st.markdown(f"AI analysis of themes and sentiments for **{selected_store}**")
 
 # --- LOGIQUE D'AFFICHAGE ---
 
-if selected_store == "Tous les magasins":
+if selected_store == "All stores":
     # --- VUE GLOBALE ---
     col1, col2, col3 = st.columns(3)
     total_reviews = df["count"].sum()
     pos_rate = (df[df["sentiment"] == "POSITIVE"]["count"].sum() / total_reviews) * 100
     
-    col1.metric("Total Avis", total_reviews)
-    col2.metric("% Positif", f"{pos_rate:.1f}%")
-    col3.metric("Magasins analysés", len(stores))
+    col1.metric("Total Reviews", total_reviews)
+    col2.metric("% Positive", f"{pos_rate:.1f}%")
+    col3.metric("Stores analyzed Reviews", len(stores))
 
-    st.subheader("Comparaison des performances par magasin")
+    st.subheader("Comparison of store performance")
     fig_global = px.bar(
             df, 
             x="store_name", 
@@ -87,11 +87,11 @@ else:
     col1, col2 = st.columns([1, 2])
     
     with col1:
-        st.subheader("Récapitulatif")
+        st.subheader("Summary")
         st.dataframe(store_df.pivot_table(index="topic", columns="sentiment", values="count", fill_value=0))
 
     with col2:
-        st.subheader("Sentiments par thématique")
+        st.subheader("Sentiments by themes")
         fig_store = px.bar(
             store_df, y="topic", x="count", color="sentiment",
             orientation='h',
@@ -101,4 +101,4 @@ else:
         st.plotly_chart(fig_store, use_container_width=True)
 
 st.divider()
-st.caption("Projet réalisé avec Hugging Face (BART & BERT) et Streamlit.")
+st.caption("Project completed with Hugging Face (BART & BERT) and Streamlit.")
