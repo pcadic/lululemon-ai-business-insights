@@ -6,6 +6,14 @@ from pathlib import Path
 # Config
 st.set_page_config(page_title="Google Maps Sentiment Analysis", layout="wide")
 
+# Définir l'ordre et les couleurs de manière globale
+SENTIMENT_ORDER = ["NEGATIVE", "NEUTRAL", "POSITIVE"]
+COLOR_MAP = {
+    "NEGATIVE": "#EF553B", # Rouge
+    "NEUTRAL": "#636EFA",  # Bleu/Gris
+    "POSITIVE": "#00CC96"  # Vert
+}
+
 # Chargement sécurisé
 DATA_PATH = Path("data/processed/business_insights.csv")
 
@@ -45,7 +53,8 @@ if selected_store == "Tous les magasins":
     st.subheader("Comparaison des performances par magasin")
     fig_global = px.bar(
         df, x="store_name", y="count", color="sentiment",
-        color_discrete_map={'POSITIVE': '#00CC96', 'NEGATIVE': '#CC0036', 'NEUTRAL': '#ff7b00'},
+        category_orders={"sentiment": SENTIMENT_ORDER}, 
+        color_discrete_map=COLOR_MAP,
         barmode="group"
     )
     st.plotly_chart(fig_global, use_container_width=True)
@@ -65,8 +74,8 @@ else:
         fig_store = px.bar(
             store_df, y="topic", x="count", color="sentiment",
             orientation='h',
-            color_discrete_map={'POSITIVE': '#00CC96', 'NEGATIVE': '#CC0036', 'NEUTRAL': '#ff7b00'},
-            category_orders={"sentiment": ["NEGATIVE", "POSITIVE", "NEUTRAL"]}
+            category_orders={"sentiment": SENTIMENT_ORDER}, 
+            color_discrete_map=COLOR_MAP}
         )
         st.plotly_chart(fig_store, use_container_width=True)
 
