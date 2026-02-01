@@ -12,8 +12,9 @@ TOPICS = [
     "Pricing",
     "Customer service",
     "Store experience",
-    "Sustainability",
-    "Brand perception"
+    "Size & Fit",
+    "Inventory & Stock",
+    "Staff Knowledge"
 ]
 
 def main():
