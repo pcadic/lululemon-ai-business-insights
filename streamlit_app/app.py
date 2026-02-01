@@ -75,7 +75,7 @@ else:
             store_df, y="topic", x="count", color="sentiment",
             orientation='h',
             category_orders={"sentiment": SENTIMENT_ORDER}, 
-            color_discrete_map=COLOR_MAP}
+            color_discrete_map=COLOR_MAP
         )
         st.plotly_chart(fig_store, use_container_width=True)
 
