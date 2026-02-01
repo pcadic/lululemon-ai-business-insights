@@ -5,6 +5,8 @@ import os
 INPUT = "data/raw/reviews_raw.csv"
 OUTPUT = "data/processed/sentiment_enriched.csv"
 
+os.environ["HF_TOKEN"] = "HF_TOKEN"
+
 def main():
     if not os.path.exists(INPUT):
         print(f"❌ Erreur : {INPUT} introuvable.")
