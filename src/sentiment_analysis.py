@@ -2,38 +2,33 @@ import pandas as pd
 from transformers import pipeline
 import os
 
-# Chemins de fichiers
 INPUT = "data/raw/reviews_raw.csv"
 OUTPUT = "data/processed/sentiment_enriched.csv"
 
 def main():
-    # 1. Chargement des données
     if not os.path.exists(INPUT):
-        print(f"❌ Erreur : Le fichier {INPUT} n'existe pas.")
+        print(f"❌ Erreur : {INPUT} introuvable.")
         return
-        
+
     df = pd.read_csv(INPUT)
     if df.empty:
         print("⚠️ Le fichier d'entrée est vide.")
         return
 
-    print(f"🤖 Chargement du modèle de sentiment (Multilingue)...")
-    # Utilisation d'un modèle plus robuste pour les avis (1 à 5 étoiles)
-    # On le charge UNE SEULE FOIS ici
-    model_name = "nlptown/bert-base-multilingual-uncased-sentiment"
-    sentiment_pipeline = pipeline("sentiment-analysis", model=model_name)
+    print("🤖 Chargement du modèle de sentiment multilingue...")
+    # Modèle spécialisé pour les avis (1 à 5 étoiles)
+    model_id = "nlptown/bert-base-multilingual-uncased-sentiment"
+    sentiment_task = pipeline("sentiment-analysis", model=model_id)
 
-    def analyze_sentiment(text):
+    def process_sentiment(text):
         if pd.isna(text) or text.strip() == "":
             return "NEUTRAL", 0.0
         
-        # Le modèle BERT a une limite de 512 tokens
-        result = sentiment_pipeline(text[:512])[0]
+        # Troncature à 512 tokens pour éviter les crashs sur les avis longs
+        result = sentiment_task(text[:512])[0]
         
-        # Le modèle nlptown renvoie des labels type "1 star", "2 stars", etc.
-        # On convertit cela en POSITIVE / NEGATIVE pour ton app Streamlit
+        # Conversion du label "X stars" en sentiment binaire/neutre
         stars = int(result['label'].split()[0])
-        
         if stars >= 4:
             label = "POSITIVE"
         elif stars <= 2:
@@ -43,18 +38,16 @@ def main():
             
         return label, result['score']
 
-    print(f"⏳ Analyse de {len(df)} avis en cours...")
+    print(f"⏳ Analyse de {len(df)} avis...")
+    # On applique l'analyse
+    results = df['text'].apply(process_sentiment)
     
-    # Application de l'analyse (plus rapide ainsi)
-    results = df['text'].apply(analyze_sentiment)
-    
-    # Séparation des résultats en deux colonnes
+    # On éclate les résultats en deux colonnes
     df[['sentiment', 'sentiment_score']] = pd.DataFrame(results.tolist(), index=df.index)
 
-    # 3. Sauvegarde
-    os.makedirs("data/processed", exist_ok=True)
+    os.makedirs(os.path.dirname(OUTPUT), exist_ok=True)
     df.to_csv(OUTPUT, index=False)
-    print(f"✅ Analyse terminée. Fichier sauvegardé dans : {OUTPUT}")
+    print(f"✅ Sentiment terminé -> {OUTPUT}")
 
 if __name__ == "__main__":
     main()
