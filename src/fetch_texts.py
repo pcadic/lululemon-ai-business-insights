@@ -43,8 +43,16 @@ def main():
         print(f"Fetching: {store}")
         search = text_search(store)
 
-        if not search.get("results"):
-            print(f"⚠️ No Text Search result for {store}")
+       # if not search.get("results"):
+       #    print(f"⚠️ No Text Search result for {store}")
+       #     continue
+
+        print("STATUS:", search.get("status"))
+        if "error_message" in search:
+            print("ERROR:", search["error_message"])
+
+        if search.get("status") != "OK":
+            print(f"❌ Google API problem for {store}")
             continue
 
         place_id = search["results"][0]["place_id"]
