@@ -1,12 +1,15 @@
 store_name,topic,sentiment,count
 Lululemon Burnaby Brentwood,Customer service,NEGATIVE,1
-Lululemon Burnaby Brentwood,Store experience,POSITIVE,4
-Lululemon Georgia Street Pacific Centre Vancouver,Customer service,NEGATIVE,1
+Lululemon Burnaby Brentwood,Customer service,POSITIVE,1
+Lululemon Burnaby Brentwood,Store experience,POSITIVE,3
+Lululemon Georgia Street Pacific Centre Vancouver,Customer service,NEGATIVE,2
 Lululemon Georgia Street Pacific Centre Vancouver,Customer service,POSITIVE,2
-Lululemon Georgia Street Pacific Centre Vancouver,Store experience,NEGATIVE,2
-Lululemon Kitsilano Vancouver,Store experience,NEGATIVE,3
+Lululemon Georgia Street Pacific Centre Vancouver,Store experience,NEGATIVE,1
+Lululemon Kitsilano Vancouver,Customer service,POSITIVE,1
+Lululemon Kitsilano Vancouver,Store experience,NEGATIVE,2
 Lululemon Kitsilano Vancouver,Store experience,POSITIVE,2
-Lululemon Metropolis at Metrotown,Store experience,NEGATIVE,2
+Lululemon Metropolis at Metrotown,Customer service,POSITIVE,1
+Lululemon Metropolis at Metrotown,Store experience,NEGATIVE,1
 Lululemon Metropolis at Metrotown,Store experience,POSITIVE,3
 Lululemon Richmond at Richmon Centre,Customer service,NEUTRAL,1
 Lululemon Richmond at Richmon Centre,Customer service,POSITIVE,2
@@ -14,7 +17,6 @@ Lululemon Richmond at Richmon Centre,Store experience,NEUTRAL,1
 Lululemon Richmond at Richmon Centre,Store experience,POSITIVE,1
 Lululemon Robson Street Vancouver,Product quality,POSITIVE,1
 Lululemon Robson Street Vancouver,Store experience,NEGATIVE,4
-Lululemon West Vancouver Park Royal,Customer service,NEGATIVE,1
+Lululemon West Vancouver Park Royal,Customer service,NEGATIVE,2
 Lululemon West Vancouver Park Royal,Customer service,POSITIVE,1
-Lululemon West Vancouver Park Royal,Store experience,NEGATIVE,1
 Lululemon West Vancouver Park Royal,Store experience,POSITIVE,2
